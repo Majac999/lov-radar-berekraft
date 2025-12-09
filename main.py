@@ -17,14 +17,14 @@ HEADERS = {
     "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action)"
 }
 
-# Søkeord vi leter etter (vi finner riktig format)
+# RIKTIG FORMAT: sf-YYYYMMDD-XXXX (uten bindestreker i dato, med ledende nuller)
 MINE_FORSKRIFTER = {
-    "2008-05-30-516": "REACH-forskriften (Kjemikalier)",
-    "2012-06-16-622": "CLP-forskriften (Merking)",
-    "2004-06-01-930": "Avfallsforskriften",
-    "2017-06-19-840": "TEK17 (Byggteknisk)",
-    "2013-12-17-1579": "DOK-forskriften (Dokumentasjon)",
-    "2004-06-01-922": "Produktforskriften"
+    "sf-20080530-0516": "REACH-forskriften (Kjemikalier)",
+    "sf-20120616-0622": "CLP-forskriften (Merking)",
+    "sf-20040601-0930": "Avfallsforskriften",
+    "sf-20170619-0840": "TEK17 (Byggteknisk)",
+    "sf-20131217-1579": "DOK-forskriften (Dokumentasjon)",
+    "sf-20040601-0922": "Produktforskriften"
 }
 
 def send_epost(endringer):
@@ -95,27 +95,12 @@ def sjekk_lovdata():
         alle_filer = tar.getnames()
         print(f"📁 Totalt {len(alle_filer)} filer i pakken")
         
-        # DEBUG: Vis 10 eksempler på filnavn
-        print("\n📄 Eksempler på filnavn:")
-        for navn in alle_filer[:10]:
-            print(f"   {navn}")
-        
-        # DEBUG: Søk etter "forskrift" i filnavn for å se mønsteret
-        print("\n🔎 Leter etter forskrifter som inneholder '2008-05-30':")
-        for navn in alle_filer:
-            if "2008-05-30" in navn:
-                print(f"   TREFF: {navn}")
-                break
-        else:
-            print("   Ingen treff på '2008-05-30'")
-        
-        # Nå søker vi etter våre forskrifter
         for member in tar.getmembers():
             filnavn = member.name.lower()
             
             for min_id, navn in MINE_FORSKRIFTER.items():
                 if min_id in filnavn:
-                    print(f"✅ Fant: {navn} -> {member.name}")
+                    print(f"✅ Fant: {navn}")
                     
                     f = tar.extractfile(member)
                     if f:
@@ -129,9 +114,9 @@ def sjekk_lovdata():
                             print(f"🔔 ENDRET: {navn}")
                             endringer_liste.append(navn)
                         elif gammel_hash is None:
-                            print(f"🆕 Første gang: {navn}")
+                            print(f"🆕 Første gang registrert: {navn}")
                         else:
-                            print(f"   Uendret: {navn}")
+                            print(f"   ✓ Uendret: {navn}")
                     break
 
     lagre_historikk(denne_sjekk)
@@ -142,7 +127,7 @@ def sjekk_lovdata():
         print(f"🚨 {len(endringer_liste)} endringer! Sender e-post...")
         send_epost(endringer_liste)
     elif len(denne_sjekk) == 0:
-        print("⚠️ ADVARSEL: Fant INGEN forskrifter! Sjekk filnavnene over.")
+        print("⚠️ ADVARSEL: Fant INGEN forskrifter!")
     else:
         print("✅ Ingen endringer siden sist.")
 
