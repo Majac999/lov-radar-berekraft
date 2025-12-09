@@ -36,21 +36,21 @@ KILDER = {
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            # Bygg
-            "20080627-0071": "Plan- og bygningsloven",
+            # Bygg - format: lov-YYYY-MM-DD-NR
+            "2008-06-27-71": "Plan- og bygningsloven",
             
             # Salg og marked
-            "20020621-0034": "Forbrukerkjøpsloven",
-            "19880513-0027": "Kjøpsloven",
-            "20090109-0002": "Markedsføringsloven",
+            "2002-06-21-34": "Forbrukerkjøpsloven",
+            "1988-05-13-27": "Kjøpsloven",
+            "2009-01-09-2": "Markedsføringsloven",
             
             # Miljø og produkter
-            "19760611-0079": "Produktkontrolloven",
+            "1976-06-11-79": "Produktkontrolloven",
             
             # Virksomhetsstyring og bærekraft
-            "20210618-0099": "Åpenhetsloven",
-            "20210604-0065": "Lov om bærekraftig finans",
-            "19980717-0056": "Regnskapsloven",
+            "2021-06-18-99": "Åpenhetsloven",
+            "2021-06-04-65": "Lov om bærekraftig finans",
+            "1998-07-17-56": "Regnskapsloven",
         }
     }
 }
@@ -126,6 +126,12 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
         with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
             alle_filer = tar.getnames()
             print(f"📁 {len(alle_filer)} filer i pakken")
+            
+            # DEBUG: Vis noen eksempler på filnavn for lover
+            if navn == "lover":
+                print("📄 Eksempler på lov-filnavn:")
+                for f in alle_filer[:5]:
+                    print(f"   {f}")
             
             for member in tar.getmembers():
                 filnavn = member.name
