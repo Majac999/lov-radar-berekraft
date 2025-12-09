@@ -17,14 +17,14 @@ HEADERS = {
     "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action)"
 }
 
-# RIKTIG FORMAT: sf-YYYYMMDD-XXXX (uten bindestreker i dato, med ledende nuller)
+# RIKTIG FORMAT basert på Lovdata sine filnavn: sf/sf-YYYYMMDD-XXXX.xml
 MINE_FORSKRIFTER = {
-    "sf-20080530-0516": "REACH-forskriften (Kjemikalier)",
-    "sf-20120616-0622": "CLP-forskriften (Merking)",
-    "sf-20040601-0930": "Avfallsforskriften",
-    "sf-20170619-0840": "TEK17 (Byggteknisk)",
-    "sf-20131217-1579": "DOK-forskriften (Dokumentasjon)",
-    "sf-20040601-0922": "Produktforskriften"
+    "20080530-0516": "REACH-forskriften (Kjemikalier)",
+    "20120616-0622": "CLP-forskriften (Merking)",
+    "20040601-0930": "Avfallsforskriften",
+    "20170619-0840": "TEK17 (Byggteknisk)",
+    "20131217-1579": "DOK-forskriften (Dokumentasjon)",
+    "20040601-0922": "Produktforskriften"
 }
 
 def send_epost(endringer):
@@ -96,7 +96,7 @@ def sjekk_lovdata():
         print(f"📁 Totalt {len(alle_filer)} filer i pakken")
         
         for member in tar.getmembers():
-            filnavn = member.name.lower()
+            filnavn = member.name
             
             for min_id, navn in MINE_FORSKRIFTER.items():
                 if min_id in filnavn:
@@ -111,23 +111,23 @@ def sjekk_lovdata():
                         gammel_hash = forrige_sjekk.get(min_id)
                         
                         if gammel_hash and gammel_hash != ny_hash:
-                            print(f"🔔 ENDRET: {navn}")
+                            print(f"   🔔 ENDRET!")
                             endringer_liste.append(navn)
                         elif gammel_hash is None:
-                            print(f"🆕 Første gang registrert: {navn}")
+                            print(f"   🆕 Første gang registrert")
                         else:
-                            print(f"   ✓ Uendret: {navn}")
+                            print(f"   ✓ Uendret")
                     break
 
     lagre_historikk(denne_sjekk)
     
-    print(f"\n📊 Fant {len(denne_sjekk)} av {len(MINE_FORSKRIFTER)} forskrifter")
+    print(f"\n📊 Resultat: Fant {len(denne_sjekk)} av {len(MINE_FORSKRIFTER)} forskrifter")
 
     if endringer_liste:
         print(f"🚨 {len(endringer_liste)} endringer! Sender e-post...")
         send_epost(endringer_liste)
     elif len(denne_sjekk) == 0:
-        print("⚠️ ADVARSEL: Fant INGEN forskrifter!")
+        print("⚠️ FEIL: Fant ingen forskrifter!")
     else:
         print("✅ Ingen endringer siden sist.")
 
