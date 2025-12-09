@@ -13,7 +13,11 @@ from pathlib import Path
 URL = "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2"
 HISTORIKK_FIL = "siste_sjekk.json"
 
-# Dine forskrifter (Bærekraft & Bygg) - Disse ID-ene søkes etter i filnavnene
+# Legger til User-Agent så vi ikke blir blokkert
+HEADERS = {
+    "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
+}
+
 MINE_FORSKRIFTER = {
     "FOR-2008-05-30-516": "REACH-forskriften (Kjemikalier)",
     "FOR-2012-06-16-622": "CLP-forskriften (Merking)",
@@ -24,18 +28,15 @@ MINE_FORSKRIFTER = {
 }
 
 def send_epost(endringer):
-    """Sender e-post via Gmail hvis endringer oppdages"""
-    avsender = os.environ.get("EMAIL_USER")  # Hentes fra GitHub Secrets
-    passord = os.environ.get("EMAIL_PASS")   # Hentes fra GitHub Secrets
-    mottaker = avsender  # Sender til deg selv
+    avsender = os.environ.get("EMAIL_USER")
+    passord = os.environ.get("EMAIL_PASS")
+    mottaker = avsender
 
     if not avsender or not passord:
         print("⚠️ Mangler e-post-informasjon (Secrets). Kan ikke sende varsel.")
         return
 
     emne = f"Lov-radar: {len(endringer)} endring(er) oppdaget!"
-    
-    # Bygg e-postteksten
     tekst = "Følgende endringer ble oppdaget i natt:\n\n"
     for navn in endringer:
         tekst += f"- {navn}\n"
@@ -48,7 +49,6 @@ def send_epost(endringer):
     msg['To'] = mottaker
 
     try:
-        # Kobler til Gmails server (SSL)
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(avsender, passord)
         server.send_message(msg)
@@ -72,23 +72,24 @@ def beregn_hash(innhold):
 
 def sjekk_lovdata():
     print("🔍 Kobler til Lovdata...")
-    response = requests.get(URL, stream=True)
+    # Bruker HEADERS for å identifisere oss
+    response = requests.get(URL, headers=HEADERS, stream=True)
     
     if response.status_code != 200:
-        print(f"❌ Feilkode: {response.status_code}")
+        print(f"❌ Feilkode fra Lovdata: {response.status_code}")
         return
 
+    print("✅ Tilkobling vellykket! Laster ned data...")
     forrige_sjekk = last_historikk()
     denne_sjekk = {}
     endringer_liste = []
     
-    # Åpne filen direkte fra minnet uten å lagre den på disk først
     fil_i_minnet = io.BytesIO(response.content)
     
     with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
-        # Gå gjennom alle filene i pakken
         for member in tar.getmembers():
             for min_id, navn in MINE_FORSKRIFTER.items():
+                # Den viktige fiks: .lower() på begge sider
                 if min_id.lower() in member.name.lower():
                     f = tar.extractfile(member)
                     if f:
@@ -98,26 +99,21 @@ def sjekk_lovdata():
                         
                         gammel_hash = forrige_sjekk.get(min_id)
                         
-                        # Logikk for å sjekke endring
                         if gammel_hash and gammel_hash != ny_hash:
                             print(f"🔔 ENDRET: {navn}")
                             endringer_liste.append(navn)
                         elif gammel_hash is None:
                             print(f"🆕 Første gang registrert: {navn}")
-                        
-                        # Vi lagrer alltid den nyeste hashen
-                        # (slik at vi har den til i morgen)
 
-    # Lagre historikken til filen
     lagre_historikk(denne_sjekk)
 
-    # Hvis vi fant faktiske endringer, send e-post
     if endringer_liste:
         print(f"🚨 Fant {len(endringer_liste)} endringer. Sender e-post...")
         send_epost(endringer_liste)
+    elif not denne_sjekk:
+        print("⚠️ ADVARSEL: Fant ingen av forskriftene i Lovdata-filen. Sjekk ID-er.")
     else:
-        print("✅ Ingen endringer i overvåkede lover i natt.")
+        print("✅ Ingen endringer i natt.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
-                    
