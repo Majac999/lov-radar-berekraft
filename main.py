@@ -33,24 +33,17 @@ KILDER = {
             "20040601-0922": "Produktforskriften (Miljøfarlige stoffer)",
         }
     },
-    "lover": {
+   "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            # Bygg
-            "2008-06-27-71": "Plan- og bygningsloven",
-            
-            # Salg og marked
-            "2002-06-21-34": "Forbrukerkjøpsloven",
-            "1988-05-13-27": "Kjøpsloven",
-            "2009-01-09-2": "Markedsføringsloven",
-            
-            # Miljø og produkter
-            "1976-06-11-79": "Produktkontrolloven",
-            
-            # Virksomhetsstyring og bærekraft
-            "2021-06-18-99": "Åpenhetsloven",
-            "2021-06-04-65": "Lov om bærekraftig finans",
-            "1998-07-17-56": "Regnskapsloven",
+            "20080627-71": "Plan- og bygningsloven",
+            "20020621-34": "Forbrukerkjoepsloven",
+            "19880513-27": "Kjoepsloven",
+            "20090109-2": "Markedsforingsloven",
+            "19760611-79": "Produktkontrolloven",
+            "20210618-99": "Aapenhetsloven",
+            "20210604-65": "Lov om baerekraftig finans",
+            "19980717-56": "Regnskapsloven",
         }
     }
 }
