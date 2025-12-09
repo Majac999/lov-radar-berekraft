@@ -9,24 +9,19 @@ from email.mime.text import MIMEText
 from email.header import Header
 from pathlib import Path
 
-# --- KONFIGURASJON ---
 HISTORIKK_FIL = "siste_sjekk.json"
 
 HEADERS = {
     "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action)"
 }
 
-# To kilder: Lover og Forskrifter
 KILDER = {
     "forskrifter": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2",
         "dokumenter": {
-            # Bygg og tekniske krav
             "20170619-0840": "TEK17 (Byggteknisk forskrift)",
             "20131217-1579": "DOK-forskriften (Byggevarer)",
             "20100326-0488": "SAK10 (Byggesaksforskriften)",
-            
-            # Miljø, kjemikalier og avfall
             "20080530-0516": "REACH-forskriften (Kjemikalier)",
             "20120616-0622": "CLP-forskriften (Merking)",
             "20040601-0930": "Avfallsforskriften",
@@ -36,21 +31,14 @@ KILDER = {
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            # Bygg
-            "2008-06-27-71": "Plan- og bygningsloven",
-            
-            # Salg og marked
-            "2002-06-21-34": "Forbrukerkjøpsloven",
-            "1988-05-13-27": "Kjøpsloven",
-            "2009-01-09-2": "Markedsføringsloven",
-            
-            # Miljø og produkter
-            "1976-06-11-79": "Produktkontrolloven",
-            
-            # Virksomhetsstyring og bærekraft
-            "2021-06-18-99": "Åpenhetsloven",
-            "2021-06-04-65": "Lov om bærekraftig finans",
-            "1998-07-17-56": "Regnskapsloven",
+            "20080627-71": "Plan- og bygningsloven",
+            "20020621-34": "Forbrukerkjøpsloven",
+            "19880513-27": "Kjøpsloven",
+            "20090109-2": "Markedsføringsloven",
+            "19760611-79": "Produktkontrolloven",
+            "20210618-99": "Åpenhetsloven",
+            "20210604-65": "Lov om bærekraftig finans",
+            "19980717-56": "Regnskapsloven",
         }
     }
 }
@@ -61,16 +49,14 @@ def send_epost(endringer):
     mottaker = avsender
 
     if not avsender or not passord:
-        print("⚠️ Mangler e-post-informasjon. Kan ikke sende varsel.")
+        print("Mangler e-post-informasjon. Kan ikke sende varsel.")
         return
 
-    emne = f"🔔 Lov-radar: {len(endringer)} endring(er) oppdaget!"
-    
-    tekst = "Følgende lover/forskrifter ble endret:\n\n"
+    emne = f"Lov-radar: {len(endringer)} endring(er) oppdaget!"
+    tekst = "Folgende lover/forskrifter ble endret:\n\n"
     for navn in endringer:
-        tekst += f"• {navn}\n"
-    tekst += "\n---\n"
-    tekst += "Sjekk Lovdata for detaljer: https://lovdata.no\n"
+        tekst += f"- {navn}\n"
+    tekst += "\nSjekk Lovdata for detaljer: https://lovdata.no\n"
     tekst += "\nMvh\nDin Lov-radar"
 
     msg = MIMEText(tekst, 'plain', 'utf-8')
@@ -83,9 +69,9 @@ def send_epost(endringer):
         server.login(avsender, passord)
         server.send_message(msg)
         server.quit()
-        print(f"📧 E-post sendt til {mottaker}!")
+        print(f"E-post sendt til {mottaker}!")
     except Exception as e:
-        print(f"❌ Feil ved sending av e-post: {e}")
+        print(f"Feil ved sending av e-post: {e}")
 
 def last_historikk():
     if Path(HISTORIKK_FIL).exists():
@@ -102,19 +88,19 @@ def beregn_hash(innhold):
 
 def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
     print(f"\n{'='*50}")
-    print(f"📥 Laster ned {navn}...")
+    print(f"Laster ned {navn}...")
     
     try:
         response = requests.get(url, headers=HEADERS, timeout=600)
     except Exception as e:
-        print(f"❌ Nettverksfeil for {navn}: {e}")
+        print(f"Nettverksfeil for {navn}: {e}")
         return {}, []
     
     if response.status_code != 200:
-        print(f"❌ Feilkode {response.status_code} for {navn}")
+        print(f"Feilkode {response.status_code} for {navn}")
         return {}, []
 
-    print(f"✅ Lastet ned {len(response.content) / 1024 / 1024:.1f} MB")
+    print(f"Lastet ned {len(response.content) / 1024 / 1024:.1f} MB")
     
     denne_sjekk = {}
     endringer_liste = []
@@ -124,12 +110,15 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
     try:
         with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
             alle_filer = tar.getnames()
-            print(f"📁 {len(alle_filer)} filer i pakken")
+            print(f"{len(alle_filer)} filer i pakken")
             
-            # DEBUG: Vis eksempler på filnavn
-            print(f"📄 Eksempler på filnavn i {navn}:")
-            for f in alle_filer[:10]:
-                print(f"   {f}")
+            # VIS ALLTID EKSEMPLER
+            print("FILNAVN-EKSEMPLER:")
+            teller = 0
+            for filnavn in alle_filer:
+                if teller < 10:
+                    print(f"  {filnavn}")
+                    teller += 1
             
             for member in tar.getmembers():
                 filnavn = member.name
@@ -147,22 +136,22 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
                             gammel_hash = forrige_sjekk.get(nokkel)
                             
                             if gammel_hash and gammel_hash != ny_hash:
-                                print(f"   🔔 ENDRET: {dok_navn}")
+                                print(f"  ENDRET: {dok_navn}")
                                 endringer_liste.append(dok_navn)
                             elif gammel_hash is None:
-                                print(f"   🆕 Ny: {dok_navn}")
+                                print(f"  Ny: {dok_navn}")
                             else:
-                                print(f"   ✓ {dok_navn}")
+                                print(f"  OK: {dok_navn}")
                         break
     except Exception as e:
-        print(f"❌ Feil ved lesing av {navn}: {e}")
+        print(f"Feil ved lesing av {navn}: {e}")
         return {}, []
     
     return denne_sjekk, endringer_liste
 
 def sjekk_lovdata():
-    print("🔍 Lov-radar Bærekraft starter...")
-    print(f"📅 Sjekker {sum(len(k['dokumenter']) for k in KILDER.values())} dokumenter")
+    print("Lov-radar Berekraft starter...")
+    print(f"Sjekker {sum(len(k['dokumenter']) for k in KILDER.values())} dokumenter")
     
     forrige_sjekk = last_historikk()
     samlet_sjekk = {}
@@ -187,17 +176,17 @@ def sjekk_lovdata():
     lagre_historikk(samlet_sjekk)
     
     print(f"\n{'='*50}")
-    print(f"📊 RESULTAT: Fant {total_funnet} av {total_forventet} dokumenter")
+    print(f"RESULTAT: Fant {total_funnet} av {total_forventet} dokumenter")
 
     if alle_endringer:
-        print(f"🚨 {len(alle_endringer)} ENDRINGER OPPDAGET!")
+        print(f"{len(alle_endringer)} ENDRINGER OPPDAGET!")
         for e in alle_endringer:
-            print(f"   → {e}")
+            print(f"  -> {e}")
         send_epost(alle_endringer)
     elif total_funnet == 0:
-        print("⚠️ ADVARSEL: Fant ingen dokumenter!")
+        print("ADVARSEL: Fant ingen dokumenter!")
     else:
-        print("✅ Ingen endringer siden sist.")
+        print("Ingen endringer siden sist.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
