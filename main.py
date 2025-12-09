@@ -20,26 +20,26 @@ KILDER = {
     "forskrifter": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2",
         "dokumenter": {
-            "forskrift-2017-06-19-840": "TEK17 (Byggteknisk forskrift)",
-            "forskrift-2013-12-17-1579": "DOK-forskriften (Byggevarer)",
-            "forskrift-2010-03-26-488": "SAK10 (Byggesaksforskriften)",
-            "forskrift-2008-05-30-516": "REACH-forskriften",
-            "forskrift-2012-06-16-622": "CLP-forskriften",
-            "forskrift-2004-06-01-930": "Avfallsforskriften",
-            "forskrift-2004-06-01-922": "Produktforskriften",
+            "20170619-0840": "TEK17 (Byggteknisk forskrift)",
+            "20131217-1579": "DOK-forskriften (Byggevarer)",
+            "20100326-0488": "SAK10 (Byggesaksforskriften)",
+            "20080530-0516": "REACH-forskriften",
+            "20120616-0622": "CLP-forskriften",
+            "20040601-0930": "Avfallsforskriften",
+            "20040601-0922": "Produktforskriften",
         }
     },
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            "lov-2008-06-27-71": "Plan- og bygningsloven",
-            "lov-2002-06-21-34": "Forbrukerkjopsloven",
-            "lov-1988-05-13-27": "Kjopsloven",
-            "lov-2009-01-09-2": "Markedsforingsloven",
-            "lov-1976-06-11-79": "Produktkontrolloven",
-            "lov-2021-06-18-99": "Apenhetsloven",
-            "lov-2021-06-04-65": "Lov om barekraftig finans",
-            "lov-1998-07-17-56": "Regnskapsloven",
+            "nl-20080627-071": "Plan- og bygningsloven",
+            "nl-20020621-034": "Forbrukerkjopsloven",
+            "nl-19880513-027": "Kjopsloven",
+            "nl-20090109-002": "Markedsforingsloven",
+            "nl-19760611-079": "Produktkontrolloven",
+            "nl-20210618-099": "Apenhetsloven",
+            "nl-20210604-065": "Lov om barekraftig finans",
+            "nl-19980717-056": "Regnskapsloven",
         }
     }
 }
@@ -86,51 +86,6 @@ def lagre_historikk(data):
 def beregn_hash(innhold):
     return hashlib.md5(innhold).hexdigest()
 
-def filnavn_matcher(member_name, dok_id):
-    """
-    Matcher flere mulige filnavnformater:
-    - Grok-format: lov-2008-06-27-71 eller forskrift-2017-06-19-840
-    - Gammelt format: nl-20080627-071 eller sf-20170619-0840
-    - Bare dato+nummer: 20080627-71 eller 20080627-071
-    """
-    name_lower = member_name.lower()
-    id_lower = dok_id.lower()
-    
-    # Direkte match
-    if id_lower in name_lower:
-        return True
-    
-    # Konverter Grok-format til gammelt format
-    # lov-2008-06-27-71 -> 20080627-071
-    match = re.match(r"(lov|forskrift)-(\d{4})-(\d{2})-(\d{2})-(\d+)", id_lower)
-    if match:
-        dato = match.group(2) + match.group(3) + match.group(4)
-        nummer = match.group(5).zfill(3)
-        alternativ_id = f"{dato}-{nummer}"
-        
-        if alternativ_id in name_lower:
-            return True
-        
-        # Prøv også nl- prefix for lover
-        if match.group(1) == "lov":
-            nl_id = f"nl-{alternativ_id}"
-            if nl_id in name_lower:
-                return True
-        
-        # Prøv sf- prefix for forskrifter
-        if match.group(1) == "forskrift":
-            sf_id = f"sf-{dato}-{nummer.zfill(4)}"
-            if sf_id in name_lower:
-                return True
-    
-    # Ekstraher bare tall og match
-    bare_tall = re.sub(r"[^\d]", "", dok_id)
-    if len(bare_tall) >= 10:
-        if bare_tall in name_lower.replace("-", ""):
-            return True
-    
-    return False
-
 def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
     print(f"\nLaster ned {navn}...")
     
@@ -153,16 +108,11 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
         with tarfile.open(fileobj=io.BytesIO(r.content), mode="r:bz2") as tar:
             alle = tar.getnames()
             print(f"{len(alle)} filer i pakken")
-            
-            # Debug: vis 5 første filnavn
-            print("Eksempel-filer:")
-            for f in alle[:5]:
-                print(f"  {f}")
 
             for dok_id, dok_navn in dokumenter.items():
                 funnet = False
                 for member in tar.getmembers():
-                    if filnavn_matcher(member.name, dok_id):
+                    if dok_id in member.name:
                         f = tar.extractfile(member)
                         if not f:
                             continue
@@ -194,7 +144,7 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
     return denne_sjekk, endringer
 
 def sjekk_lovdata():
-    print("Lovradar v2.0 starter...")
+    print("Lovradar starter...")
     total = sum(len(v["dokumenter"]) for v in KILDER.values())
     print(f"Sjekker {total} dokumenter")
 
