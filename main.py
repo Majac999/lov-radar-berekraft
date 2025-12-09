@@ -194,4 +194,3 @@ def sjekk_lovdata():
 
 if __name__ == "__main__":
     sjekk_lovdata()
-    
