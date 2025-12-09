@@ -13,18 +13,18 @@ from pathlib import Path
 URL = "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2"
 HISTORIKK_FIL = "siste_sjekk.json"
 
-# Legger til User-Agent så vi ikke blir blokkert
 HEADERS = {
-    "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
+    "User-Agent": "LovRadar-Berekraft/1.0 (GitHub Action)"
 }
 
+# Søkeord vi leter etter (vi finner riktig format)
 MINE_FORSKRIFTER = {
-    "FOR-2008-05-30-516": "REACH-forskriften (Kjemikalier)",
-    "FOR-2012-06-16-622": "CLP-forskriften (Merking)",
-    "FOR-2004-06-01-930": "Avfallsforskriften",
-    "FOR-2017-06-19-840": "TEK17 (Byggteknisk)",
-    "FOR-2013-12-17-1579": "DOK-forskriften (Dokumentasjon)",
-    "FOR-2004-06-01-922": "Produktforskriften"
+    "2008-05-30-516": "REACH-forskriften (Kjemikalier)",
+    "2012-06-16-622": "CLP-forskriften (Merking)",
+    "2004-06-01-930": "Avfallsforskriften",
+    "2017-06-19-840": "TEK17 (Byggteknisk)",
+    "2013-12-17-1579": "DOK-forskriften (Dokumentasjon)",
+    "2004-06-01-922": "Produktforskriften"
 }
 
 def send_epost(endringer):
@@ -33,11 +33,11 @@ def send_epost(endringer):
     mottaker = avsender
 
     if not avsender or not passord:
-        print("⚠️ Mangler e-post-informasjon (Secrets). Kan ikke sende varsel.")
+        print("⚠️ Mangler e-post-informasjon. Kan ikke sende varsel.")
         return
 
     emne = f"Lov-radar: {len(endringer)} endring(er) oppdaget!"
-    tekst = "Følgende endringer ble oppdaget i natt:\n\n"
+    tekst = "Følgende endringer ble oppdaget:\n\n"
     for navn in endringer:
         tekst += f"- {navn}\n"
     tekst += "\nSjekk Lovdata for detaljer: https://lovdata.no\n"
@@ -72,14 +72,19 @@ def beregn_hash(innhold):
 
 def sjekk_lovdata():
     print("🔍 Kobler til Lovdata...")
-    # Bruker HEADERS for å identifisere oss
-    response = requests.get(URL, headers=HEADERS, stream=True)
+    
+    try:
+        response = requests.get(URL, headers=HEADERS, timeout=300)
+    except Exception as e:
+        print(f"❌ Nettverksfeil: {e}")
+        return
     
     if response.status_code != 200:
-        print(f"❌ Feilkode fra Lovdata: {response.status_code}")
+        print(f"❌ Feilkode: {response.status_code}")
         return
 
-    print("✅ Tilkobling vellykket! Laster ned data...")
+    print(f"✅ Lastet ned {len(response.content) / 1024 / 1024:.1f} MB")
+    
     forrige_sjekk = last_historikk()
     denne_sjekk = {}
     endringer_liste = []
@@ -87,10 +92,31 @@ def sjekk_lovdata():
     fil_i_minnet = io.BytesIO(response.content)
     
     with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
+        alle_filer = tar.getnames()
+        print(f"📁 Totalt {len(alle_filer)} filer i pakken")
+        
+        # DEBUG: Vis 10 eksempler på filnavn
+        print("\n📄 Eksempler på filnavn:")
+        for navn in alle_filer[:10]:
+            print(f"   {navn}")
+        
+        # DEBUG: Søk etter "forskrift" i filnavn for å se mønsteret
+        print("\n🔎 Leter etter forskrifter som inneholder '2008-05-30':")
+        for navn in alle_filer:
+            if "2008-05-30" in navn:
+                print(f"   TREFF: {navn}")
+                break
+        else:
+            print("   Ingen treff på '2008-05-30'")
+        
+        # Nå søker vi etter våre forskrifter
         for member in tar.getmembers():
+            filnavn = member.name.lower()
+            
             for min_id, navn in MINE_FORSKRIFTER.items():
-                # Den viktige fiks: .lower() på begge sider
-                if min_id.lower() in member.name.lower():
+                if min_id in filnavn:
+                    print(f"✅ Fant: {navn} -> {member.name}")
+                    
                     f = tar.extractfile(member)
                     if f:
                         innhold = f.read()
@@ -103,17 +129,22 @@ def sjekk_lovdata():
                             print(f"🔔 ENDRET: {navn}")
                             endringer_liste.append(navn)
                         elif gammel_hash is None:
-                            print(f"🆕 Første gang registrert: {navn}")
+                            print(f"🆕 Første gang: {navn}")
+                        else:
+                            print(f"   Uendret: {navn}")
+                    break
 
     lagre_historikk(denne_sjekk)
+    
+    print(f"\n📊 Fant {len(denne_sjekk)} av {len(MINE_FORSKRIFTER)} forskrifter")
 
     if endringer_liste:
-        print(f"🚨 Fant {len(endringer_liste)} endringer. Sender e-post...")
+        print(f"🚨 {len(endringer_liste)} endringer! Sender e-post...")
         send_epost(endringer_liste)
-    elif not denne_sjekk:
-        print("⚠️ ADVARSEL: Fant ingen av forskriftene i Lovdata-filen. Sjekk ID-er.")
+    elif len(denne_sjekk) == 0:
+        print("⚠️ ADVARSEL: Fant INGEN forskrifter! Sjekk filnavnene over.")
     else:
-        print("✅ Ingen endringer i natt.")
+        print("✅ Ingen endringer siden sist.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
