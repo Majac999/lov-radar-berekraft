@@ -89,7 +89,7 @@ def sjekk_lovdata():
         # Gå gjennom alle filene i pakken
         for member in tar.getmembers():
             for min_id, navn in MINE_FORSKRIFTER.items():
-                if min_id in member.name:
+                if min_id.lower() in member.name.lower():
                     f = tar.extractfile(member)
                     if f:
                         innhold = f.read()
