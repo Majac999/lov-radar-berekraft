@@ -28,19 +28,19 @@ KILDER = {
             "20040601-0922": "Produktforskriften",
         }
     },
-    "lover": {
-        "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
-        "dokumenter": {
-            "20080627-0071": "Plan- og bygningsloven",
-            "20020621-0034": "Forbrukerkjopsloven",
-            "19880513-0027": "Kjopsloven",
-            "20090109-0002": "Markedsforingsloven",
-            "19760611-0079": "Produktkontrolloven",
-            "20210618-0099": "Apenhetsloven",
-            "20210604-0065": "Lov om barekraftig finans",
-            "19980717-0056": "Regnskapsloven",
-        }
+   "lover": {
+    "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
+    "dokumenter": {
+        "lov/2008-06-27-71": "Plan- og bygningsloven",
+        "lov/2002-06-21-34": "Forbrukerkjopsloven",
+        "lov/1988-05-13-27": "Kjopsloven",
+        "lov/2009-01-09-2": "Markedsforingsloven",
+        "lov/1976-06-11-79": "Produktkontrolloven",
+        "lov/2021-06-18-99": "Apenhetsloven",
+        "lov/2021-06-04-65": "Lov om barekraftig finans",
+        "lov/1998-07-17-56": "Regnskapsloven",
     }
+}
 }
 
 def send_epost(endringer):
