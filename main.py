@@ -36,7 +36,7 @@ KILDER = {
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            # Bygg - format: lov-YYYY-MM-DD-NR
+            # Bygg
             "2008-06-27-71": "Plan- og bygningsloven",
             
             # Salg og marked
@@ -71,7 +71,7 @@ def send_epost(endringer):
         tekst += f"• {navn}\n"
     tekst += "\n---\n"
     tekst += "Sjekk Lovdata for detaljer: https://lovdata.no\n"
-    tekst += "\nMvh\nDin Lov-radar 🔍"
+    tekst += "\nMvh\nDin Lov-radar"
 
     msg = MIMEText(tekst, 'plain', 'utf-8')
     msg['Subject'] = Header(emne, 'utf-8')
@@ -101,7 +101,6 @@ def beregn_hash(innhold):
     return hashlib.md5(innhold).hexdigest()
 
 def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
-    """Sjekker én kilde (lover eller forskrifter)"""
     print(f"\n{'='*50}")
     print(f"📥 Laster ned {navn}...")
     
@@ -127,11 +126,10 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
             alle_filer = tar.getnames()
             print(f"📁 {len(alle_filer)} filer i pakken")
             
-            # DEBUG: Vis noen eksempler på filnavn for lover
-            if navn == "lover":
-                print("📄 Eksempler på lov-filnavn:")
-                for f in alle_filer[:5]:
-                    print(f"   {f}")
+            # DEBUG: Vis eksempler på filnavn
+            print(f"📄 Eksempler på filnavn i {navn}:")
+            for f in alle_filer[:10]:
+                print(f"   {f}")
             
             for member in tar.getmembers():
                 filnavn = member.name
@@ -143,7 +141,6 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
                             innhold = f.read()
                             ny_hash = beregn_hash(innhold)
                             
-                            # Bruk kombinert nøkkel for å unngå kollisjon
                             nokkel = f"{navn}:{dok_id}"
                             denne_sjekk[nokkel] = ny_hash
                             
@@ -198,7 +195,7 @@ def sjekk_lovdata():
             print(f"   → {e}")
         send_epost(alle_endringer)
     elif total_funnet == 0:
-        print("⚠️ ADVARSEL: Fant ingen dokumenter! Sjekk ID-ene.")
+        print("⚠️ ADVARSEL: Fant ingen dokumenter!")
     else:
         print("✅ Ingen endringer siden sist.")
 
