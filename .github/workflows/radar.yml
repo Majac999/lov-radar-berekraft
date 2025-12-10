@@ -35,7 +35,7 @@ jobs:
           git config --global user.name "Lov-radar Bot"
           git config --global user.email "bot@noreply.github.com"
           
-          # VIKTIG ENDRING: Vi henter siste nytt før vi lagrer!
+          # HER ER MEDISINEN: Henter oppdateringer før vi lagrer
           git pull
           
           git add siste_sjekk.json
