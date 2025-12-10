@@ -13,7 +13,7 @@ from pathlib import Path
 HISTORIKK_FIL = "siste_sjekk.json"
 
 HEADERS = {
-    "User-Agent": "LovRadar-Berekraft/2.0"
+    "User-Agent": "LovRadar-Berekraft/2.1"
 }
 
 KILDER = {
@@ -32,14 +32,14 @@ KILDER = {
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            "nl-20080627-071": "Plan- og bygningsloven",
-            "nl-20020621-034": "Forbrukerkjopsloven",
-            "nl-19880513-027": "Kjopsloven",
-            "nl-20090109-002": "Markedsforingsloven",
-            "nl-19760611-079": "Produktkontrolloven",
-            "nl-20210618-099": "Apenhetsloven",
-            "nl-20210604-065": "Lov om barekraftig finans",
-            "nl-19980717-056": "Regnskapsloven",
+            "20080627": "Plan- og bygningsloven",
+            "20020621": "Forbrukerkjopsloven",
+            "19880513": "Kjopsloven",
+            "20090109": "Markedsforingsloven",
+            "19760611": "Produktkontrolloven",
+            "20210618": "Apenhetsloven",
+            "20210604": "Lov om barekraftig finans",
+            "19980717": "Regnskapsloven",
         }
     }
 }
@@ -87,7 +87,8 @@ def beregn_hash(innhold):
     return hashlib.md5(innhold).hexdigest()
 
 def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
-    print(f"\nLaster ned {navn}...")
+    print(f"\n{'='*50}")
+    print(f"Laster ned {navn}...")
     
     try:
         r = requests.get(url, headers=HEADERS, timeout=600)
@@ -108,6 +109,10 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
         with tarfile.open(fileobj=io.BytesIO(r.content), mode="r:bz2") as tar:
             alle = tar.getnames()
             print(f"{len(alle)} filer i pakken")
+            
+            print("Eksempler:")
+            for f in alle[:10]:
+                print(f"  {f}")
 
             for dok_id, dok_navn in dokumenter.items():
                 funnet = False
@@ -144,7 +149,7 @@ def sjekk_kilde(navn, url, dokumenter, forrige_sjekk):
     return denne_sjekk, endringer
 
 def sjekk_lovdata():
-    print("Lovradar starter...")
+    print("Lovradar v2.1 starter...")
     total = sum(len(v["dokumenter"]) for v in KILDER.values())
     print(f"Sjekker {total} dokumenter")
 
