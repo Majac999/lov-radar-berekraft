@@ -2,7 +2,7 @@ name: Lov-radar Bærekraft
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Kjører kl 06:00 norsk tid
+    - cron: '0 5 * * *'  # Kjører kl 06:00
   workflow_dispatch:      # Lar deg kjøre manuelt
 
 permissions:
@@ -24,20 +24,21 @@ jobs:
       - name: Installer biblioteker
         run: pip install requests
 
+      # HER ER LØSNINGEN: Vi henter endringene dine FØR scriptet kjører
+      - name: Konfigurer Git og Hent endringer
+        run: |
+          git config --global user.name "Lov-radar Bot"
+          git config --global user.email "bot@noreply.github.com"
+          git pull
+
       - name: Kjør Lov-radar
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: python main.py
 
-      - name: Lagre historikk (Commit)
+      - name: Lagre og last opp
         run: |
-          git config --global user.name "Lov-radar Bot"
-          git config --global user.email "bot@noreply.github.com"
-          
-          # Henter siste endringer for å unngå krasj
-          git pull
-          
           git add siste_sjekk.json
-          # Sjekker om det er endringer før vi lagrer
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-historikk" && git push)
+          git commit -m "Oppdaterte lov-historikk" || echo "Ingen endringer å lagre"
+          git push
