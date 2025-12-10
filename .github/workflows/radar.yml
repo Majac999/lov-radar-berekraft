@@ -39,4 +39,5 @@ jobs:
           git pull
           
           git add siste_sjekk.json
+          # Sjekker om det er endringer før vi lagrer
           git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-historikk" && git push)
