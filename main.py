@@ -32,14 +32,14 @@ KILDER = {
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            "20080627": "Plan- og bygningsloven",
-            "20020621": "Forbrukerkjopsloven",
-            "19880513": "Kjopsloven",
-            "20090109": "Markedsforingsloven",
-            "19760611": "Produktkontrolloven",
-            "20210618": "Apenhetsloven",
-            "20210604": "Lov om barekraftig finans",
-            "19980717": "Regnskapsloven",
+       "LOV-2008-06-27-71": "Plan- og bygningsloven",
+    "LOV-2002-06-21-34": "Forbrukerkjøpsloven",
+    "LOV-1988-05-13-27": "Kjøpsloven",
+    "LOV-2009-01-09-2": "Markedsføringsloven",
+    "LOV-1976-06-11-79": "Produktkontrolloven",
+    "LOV-2021-06-18-99": "Åpenhetsloven",
+    "LOV-2021-12-22-161": "Lov om bærekraftig finans",
+    "LOV-1998-07-17-56": "Regnskapsloven",
         }
     }
 }
