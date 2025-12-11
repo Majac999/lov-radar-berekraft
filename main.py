@@ -5,17 +5,20 @@ import json
 import hashlib
 import smtplib
 import os
+import time
 from email.mime.text import MIMEText
 from email.header import Header
 from pathlib import Path
 
 # --- KONFIGURASJON ---
 HISTORIKK_FIL = "siste_sjekk.json"
+TIMEOUT_SEKUNDER = 60 
+
 HEADERS = {
-    "User-Agent": "LovRadar-Berekraft/2.0 (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
+    "User-Agent": "LovRadar-Berekraft/3.2 (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
 }
 
-# Din oppdaterte struktur (med korrigerte ID-er for lover)
+# KOMPLETT LISTE (Bærekraft, Bygg & Handel)
 KILDER = {
     "forskrifter": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2",
@@ -27,15 +30,15 @@ KILDER = {
             "20120616-0622": "CLP-forskriften",
             "20040601-0930": "Avfallsforskriften",
             "20040601-0922": "Produktforskriften",
-            # Tilleggsanbefalinger for komplett radar:
             "20150501-0406": "Tømmerforskriften",
             "20170418-0480": "Biocidforskriften",
+            "20171010-1598": "FEU (Elektrisk utstyr)",
+            "19961206-1127": "Internkontrollforskriften",
         }
     },
     "lover": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2",
         "dokumenter": {
-            # Her har jeg fjernet "LOV-" og bindestreker for at den skal finne filene
             "20080627": "Plan- og bygningsloven",
             "20020621": "Forbrukerkjøpsloven",
             "19880513": "Kjøpsloven",
@@ -89,22 +92,28 @@ def lagre_historikk(data):
         json.dump(data, f, indent=2)
 
 def beregn_hash(innhold):
-    return hashlib.md5(innhold).hexdigest()
+    return hashlib.sha256(innhold).hexdigest()
 
 def sjekk_lovdata():
-    print("🤖 Lovradar v3.0 starter...")
+    start_tid = time.time()
+    print("🤖 Lovradar v3.2 (Final) starter...")
+    
+    # Sjekker om dette er aller første gang vi kjører (ingen historikk-fil)
+    forste_gang = not Path(HISTORIKK_FIL).exists()
+    
     forrige_sjekk = last_historikk()
     denne_sjekk = {}
     endringer_liste = []
     
-    # Vi går nå gjennom BÅDE forskrifter og lover
     for kilde_navn, kilde_data in KILDER.items():
         print(f"\nSjekker {kilde_navn}...")
         url = kilde_data["url"]
         dokumenter = kilde_data["dokumenter"]
         
         try:
-            response = requests.get(url, headers=HEADERS, stream=True)
+            # Fjernet stream=True for ryddigere kode, la til timeout
+            response = requests.get(url, headers=HEADERS, timeout=TIMEOUT_SEKUNDER)
+            
             if response.status_code != 200:
                 print(f"❌ Feil ved nedlasting av {kilde_navn}: {response.status_code}")
                 continue
@@ -114,13 +123,12 @@ def sjekk_lovdata():
             with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
                 for member in tar.getmembers():
                     for min_id, navn in dokumenter.items():
-                        # Sjekker om ID-en finnes i filnavnet (f.eks. "20080627" i "nl-20080627...")
                         if min_id in member.name:
                             f = tar.extractfile(member)
                             if f:
                                 innhold = f.read()
                                 ny_hash = beregn_hash(innhold)
-                                denne_sjekk[min_id] = ny_hash # Lagrer ny hash
+                                denne_sjekk[min_id] = ny_hash
                                 
                                 gammel_hash = forrige_sjekk.get(min_id)
                                 
@@ -129,25 +137,28 @@ def sjekk_lovdata():
                                     endringer_liste.append(navn)
                                 elif gammel_hash is None:
                                     print(f"🆕 NY (Funnet): {navn}")
-                                else:
-                                    print(f"✅ OK: {navn}")
                                     
         except Exception as e:
             print(f"❌ En feil oppstod med {kilde_navn}: {e}")
 
-    # Sjekk om vi har mistet noen (lå i gammel sjekk, men ikke funnet nå)
-    # Dette beholder gamle hash-verdier for lover vi ikke sjekket i dag, for sikkerhets skyld
+    # Sikkerhet: Beholder data for lover vi kanskje ikke fant i dag
     for k, v in forrige_sjekk.items():
         if k not in denne_sjekk:
             denne_sjekk[k] = v
 
     lagre_historikk(denne_sjekk)
 
+    tid_brukt = time.time() - start_tid
+    print(f"\n⏱️ Ferdig på {tid_brukt:.2f} sekunder.")
+
     if endringer_liste:
-        print(f"\n🚨 Fant {len(endringer_liste)} endringer. Sender e-post...")
-        send_epost(endringer_liste)
+        if forste_gang:
+            print(f"ℹ️ Første kjøring: Fant {len(endringer_liste)} lover/forskrifter. Oppretter 'fasit' uten å sende e-post.")
+        else:
+            print(f"🚨 Fant {len(endringer_liste)} faktiske endringer. Sender e-post...")
+            send_epost(endringer_liste)
     else:
-        print("\n✅ Ingen endringer funnet i noen lister.")
+        print("✅ Ingen endringer funnet.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
