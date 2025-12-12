@@ -1,45 +1,38 @@
-name: Lov-radar Bærekraft
+name: LovRadar Daglig Sjekk
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Kjører kl 06:00
-  workflow_dispatch:      # Lar deg kjøre manuelt
-
-permissions:
-  contents: write
+    - cron: '0 5 * * *'  # Kjører kl 06:00 norsk tid (05:00 UTC)
+  workflow_dispatch:      # Gjør at du kan starte den manuelt via en knapp
 
 jobs:
-  kjor_radar:
+  kjore-radar:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write     # VIKTIG: Gir lov til å lagre cache tilbake til GitHub
+
     steps:
       - name: Hent koden
         uses: actions/checkout@v4
 
       - name: Sett opp Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Installer biblioteker
         run: pip install requests
 
-      # --- HER ER ENDRINGEN: ---
-      # Vi henter dine endringer FØR roboten får lov til å røre noe som helst!
-      - name: Konfigurer Git og Hent
-        run: |
-          git config --global user.name "Lov-radar Bot"
-          git config --global user.email "bot@noreply.github.com"
-          git pull
-
-      - name: Kjør Lov-radar
+      - name: Kjør LovRadar-scriptet
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: python main.py
 
-      - name: Lagre og last opp
+      - name: Lagre cache tilbake til GitHub
         run: |
-          git add siste_sjekk.json
-          git commit -m "Oppdaterte lov-historikk" || echo "Ingen endringer å lagre"
-          git push
+          git config --global user.name 'LovRadar Bot'
+          git config --global user.email 'bot@noreply.github.com'
+          git add tekst_cache/
+          # Sjekk om det er endringer før vi committer (unngår feilmelding hvis alt er likt)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git push)
