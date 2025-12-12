@@ -12,15 +12,15 @@ from email.header import Header
 from pathlib import Path
 
 # --- KONFIGURASJON ---
-CACHE_MAPPE = "tekst_cache"   # Mappe for å lagre "fasiten"
-TERSKEL_LIKHET = 0.998        # 99.8% likhet = ignoreres (småplukk).
+CACHE_MAPPE = "tekst_cache"   
+TERSKEL_LIKHET = 0.995        # 99.5% likhet = ignoreres (Tillater litt mer støy)
 TIMEOUT_SEKUNDER = 60 
 
 HEADERS = {
-    "User-Agent": "LovRadar-Berekraft/4.0-Diff (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
+    "User-Agent": "LovRadar-Berekraft/4.1-Fix (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
 }
 
-# KOMPLETT LISTE (Bærekraft, Bygg & Handel)
+# KOMPLETT LISTE 
 KILDER = {
     "forskrifter": {
         "url": "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2",
@@ -54,22 +54,19 @@ KILDER = {
 }
 
 def rens_tekst(radata_bytes):
-    """Vasker teksten for støy (HTML, datoer, whitespace)."""
     try:
         tekst = radata_bytes.decode('utf-8', errors='ignore')
-        tekst = re.sub(r'<[^>]+>', ' ', tekst) # Fjern HTML
-        tekst = re.sub(r'Sist endret.*', '', tekst, flags=re.IGNORECASE) # Fjern dato
+        tekst = re.sub(r'<[^>]+>', ' ', tekst) 
+        tekst = re.sub(r'Sist endret.*', '', tekst, flags=re.IGNORECASE)
         tekst = re.sub(r'Dato.*', '', tekst, flags=re.IGNORECASE)
-        tekst = re.sub(r'\s+', ' ', tekst) # Normaliser mellomrom
+        tekst = re.sub(r'\s+', ' ', tekst) 
         return tekst.strip()
     except Exception:
         return str(radata_bytes)
 
 def er_vesentlig_endring(filnavn, ny_tekst):
-    """Returnerer (True/False, endringsprosent)."""
     filsti = Path(CACHE_MAPPE) / f"{filnavn}.txt"
     
-    # Hvis filen ikke finnes, er det første kjøring -> returner True (men 0% endring)
     if not filsti.exists():
         return True, 0.0 
 
@@ -79,7 +76,6 @@ def er_vesentlig_endring(filnavn, ny_tekst):
     matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
     likhet = matcher.ratio()
 
-    # Hvis likheten er LAVERE enn terskelen, er det en endring
     if likhet < TERSKEL_LIKHET:
         endring_prosent = (1 - likhet) * 100
         return True, endring_prosent
@@ -100,7 +96,7 @@ def send_epost(endringer):
     mottaker = avsender
 
     if not avsender or not passord:
-        print("⚠️ Mangler e-post-informasjon (Secrets).")
+        print("⚠️ Mangler e-post-informasjon.")
         return
 
     emne = f"Lov-radar: {len(endringer)} VESENTLIGE endringer!"
@@ -127,7 +123,7 @@ def send_epost(endringer):
 
 def sjekk_lovdata():
     start_tid = time.time()
-    print(f"🤖 Lovradar v4.0 (Diff-sjekk) starter...")
+    print(f"🤖 Lovradar v4.1 (Anti-Spam) starter...")
     
     if not os.path.exists(CACHE_MAPPE):
         os.makedirs(CACHE_MAPPE)
@@ -136,6 +132,10 @@ def sjekk_lovdata():
     
     for kilde_navn, kilde_data in KILDER.items():
         print(f"\nSjekker {kilde_navn}...")
+        
+        # NYTT: Holder styr på hvilke lover vi allerede har sjekket i denne runden
+        behandlede_ider = set() 
+        
         try:
             response = requests.get(kilde_data["url"], headers=HEADERS, timeout=TIMEOUT_SEKUNDER)
             if response.status_code != 200:
@@ -146,6 +146,11 @@ def sjekk_lovdata():
             with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
                 for member in tar.getmembers():
                     for min_id, navn in kilde_data["dokumenter"].items():
+                        
+                        # SJEKK: Har vi allerede behandlet denne loven i dag?
+                        if min_id in behandlede_ider:
+                            continue # Hopp over dubletter!
+
                         if min_id in member.name:
                             f = tar.extractfile(member)
                             if f:
@@ -156,13 +161,16 @@ def sjekk_lovdata():
                                 
                                 if endret:
                                     if endring_p == 0.0:
-                                        print(f"🆕 Første indeksering: {navn}")
+                                        print(f"🆕 Første: {navn}")
                                     else:
                                         print(f"🚨 ENDRING ({endring_p:.2f}%): {navn}")
                                         vesentlige_endringer.append((navn, endring_p))
                                     
                                     # Oppdater cache
                                     lagre_til_cache(min_id, ny_tekst)
+                                
+                                # Marker at vi er ferdige med denne loven for i dag
+                                behandlede_ider.add(min_id)
                                     
         except Exception as e:
             print(f"❌ Feil med {kilde_navn}: {e}")
@@ -170,13 +178,12 @@ def sjekk_lovdata():
     tid_brukt = time.time() - start_tid
     print(f"\n⏱️ Ferdig på {tid_brukt:.2f} sekunder.")
 
-    # Send e-post KUN hvis endring > 0.0 (altså ikke første kjøring)
     reelle_endringer = [x for x in vesentlige_endringer if x[1] > 0.0]
     
     if reelle_endringer:
         send_epost(reelle_endringer)
     else:
-        print("✅ Ingen vesentlige endringer som krever varsling.")
+        print("✅ Ingen vesentlige endringer.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
