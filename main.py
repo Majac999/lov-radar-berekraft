@@ -2,20 +2,22 @@ import requests
 import tarfile
 import io
 import json
-import hashlib
 import smtplib
 import os
 import time
+import re
+import difflib
 from email.mime.text import MIMEText
 from email.header import Header
 from pathlib import Path
 
 # --- KONFIGURASJON ---
-HISTORIKK_FIL = "siste_sjekk.json"
+CACHE_MAPPE = "tekst_cache"   # Mappe for å lagre "fasiten"
+TERSKEL_LIKHET = 0.998        # 99.8% likhet = ignoreres (småplukk).
 TIMEOUT_SEKUNDER = 60 
 
 HEADERS = {
-    "User-Agent": "LovRadar-Berekraft/3.2 (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
+    "User-Agent": "LovRadar-Berekraft/4.0-Diff (GitHub Action; +https://github.com/Majac999/lov-radar-berekraft)"
 }
 
 # KOMPLETT LISTE (Bærekraft, Bygg & Handel)
@@ -51,21 +53,63 @@ KILDER = {
     }
 }
 
+def rens_tekst(radata_bytes):
+    """Vasker teksten for støy (HTML, datoer, whitespace)."""
+    try:
+        tekst = radata_bytes.decode('utf-8', errors='ignore')
+        tekst = re.sub(r'<[^>]+>', ' ', tekst) # Fjern HTML
+        tekst = re.sub(r'Sist endret.*', '', tekst, flags=re.IGNORECASE) # Fjern dato
+        tekst = re.sub(r'Dato.*', '', tekst, flags=re.IGNORECASE)
+        tekst = re.sub(r'\s+', ' ', tekst) # Normaliser mellomrom
+        return tekst.strip()
+    except Exception:
+        return str(radata_bytes)
+
+def er_vesentlig_endring(filnavn, ny_tekst):
+    """Returnerer (True/False, endringsprosent)."""
+    filsti = Path(CACHE_MAPPE) / f"{filnavn}.txt"
+    
+    # Hvis filen ikke finnes, er det første kjøring -> returner True (men 0% endring)
+    if not filsti.exists():
+        return True, 0.0 
+
+    with open(filsti, "r", encoding="utf-8") as f:
+        gammel_tekst = f.read()
+
+    matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
+    likhet = matcher.ratio()
+
+    # Hvis likheten er LAVERE enn terskelen, er det en endring
+    if likhet < TERSKEL_LIKHET:
+        endring_prosent = (1 - likhet) * 100
+        return True, endring_prosent
+    
+    return False, 0.0
+
+def lagre_til_cache(filnavn, tekst):
+    if not os.path.exists(CACHE_MAPPE):
+        os.makedirs(CACHE_MAPPE)
+    
+    filsti = Path(CACHE_MAPPE) / f"{filnavn}.txt"
+    with open(filsti, "w", encoding="utf-8") as f:
+        f.write(tekst)
+
 def send_epost(endringer):
     avsender = os.environ.get("EMAIL_USER")
     passord = os.environ.get("EMAIL_PASS")
     mottaker = avsender
 
     if not avsender or not passord:
-        print("⚠️ Mangler e-post-informasjon. Kan ikke sende varsel.")
+        print("⚠️ Mangler e-post-informasjon (Secrets).")
         return
 
-    emne = f"Lov-radar: {len(endringer)} endring(er) oppdaget!"
-    tekst = "Følgende endringer ble oppdaget i natt:\n\n"
-    for navn in endringer:
-        tekst += f"- {navn}\n"
-    tekst += "\nSjekk Lovdata for detaljer: https://lovdata.no\n"
-    tekst += "\nMvh\nDin Lov-radar"
+    emne = f"Lov-radar: {len(endringer)} VESENTLIGE endringer!"
+    tekst = "Følgende endringer er over terskelverdien (filtrert for småfeil):\n\n"
+    for navn, endring_p in endringer:
+        tekst += f"- {navn} (Endring: {endring_p:.2f}%)\n"
+    
+    tekst += "\nTips: Kopier teksten fra Lovdata og spør din AI-bot om hva endringen betyr."
+    tekst += "\nSjekk Lovdata: https://lovdata.no\n"
 
     msg = MIMEText(tekst, 'plain', 'utf-8')
     msg['Subject'] = Header(emne, 'utf-8')
@@ -81,84 +125,58 @@ def send_epost(endringer):
     except Exception as e:
         print(f"❌ Feil ved sending av e-post: {e}")
 
-def last_historikk():
-    if Path(HISTORIKK_FIL).exists():
-        with open(HISTORIKK_FIL, "r") as f:
-            return json.load(f)
-    return {}
-
-def lagre_historikk(data):
-    with open(HISTORIKK_FIL, "w") as f:
-        json.dump(data, f, indent=2)
-
-def beregn_hash(innhold):
-    return hashlib.sha256(innhold).hexdigest()
-
 def sjekk_lovdata():
     start_tid = time.time()
-    print("🤖 Lovradar v3.2 (Final) starter...")
+    print(f"🤖 Lovradar v4.0 (Diff-sjekk) starter...")
     
-    # Sjekker om dette er aller første gang vi kjører (ingen historikk-fil)
-    forste_gang = not Path(HISTORIKK_FIL).exists()
-    
-    forrige_sjekk = last_historikk()
-    denne_sjekk = {}
-    endringer_liste = []
+    if not os.path.exists(CACHE_MAPPE):
+        os.makedirs(CACHE_MAPPE)
+
+    vesentlige_endringer = []
     
     for kilde_navn, kilde_data in KILDER.items():
         print(f"\nSjekker {kilde_navn}...")
-        url = kilde_data["url"]
-        dokumenter = kilde_data["dokumenter"]
-        
         try:
-            # Fjernet stream=True for ryddigere kode, la til timeout
-            response = requests.get(url, headers=HEADERS, timeout=TIMEOUT_SEKUNDER)
-            
+            response = requests.get(kilde_data["url"], headers=HEADERS, timeout=TIMEOUT_SEKUNDER)
             if response.status_code != 200:
-                print(f"❌ Feil ved nedlasting av {kilde_navn}: {response.status_code}")
+                print(f"❌ HTTP {response.status_code}")
                 continue
                 
             fil_i_minnet = io.BytesIO(response.content)
-            
             with tarfile.open(fileobj=fil_i_minnet, mode="r:bz2") as tar:
                 for member in tar.getmembers():
-                    for min_id, navn in dokumenter.items():
+                    for min_id, navn in kilde_data["dokumenter"].items():
                         if min_id in member.name:
                             f = tar.extractfile(member)
                             if f:
-                                innhold = f.read()
-                                ny_hash = beregn_hash(innhold)
-                                denne_sjekk[min_id] = ny_hash
+                                ra_data = f.read()
+                                ny_tekst = rens_tekst(ra_data)
                                 
-                                gammel_hash = forrige_sjekk.get(min_id)
+                                endret, endring_p = er_vesentlig_endring(min_id, ny_tekst)
                                 
-                                if gammel_hash and gammel_hash != ny_hash:
-                                    print(f"🔔 ENDRET: {navn}")
-                                    endringer_liste.append(navn)
-                                elif gammel_hash is None:
-                                    print(f"🆕 NY (Funnet): {navn}")
+                                if endret:
+                                    if endring_p == 0.0:
+                                        print(f"🆕 Første indeksering: {navn}")
+                                    else:
+                                        print(f"🚨 ENDRING ({endring_p:.2f}%): {navn}")
+                                        vesentlige_endringer.append((navn, endring_p))
+                                    
+                                    # Oppdater cache
+                                    lagre_til_cache(min_id, ny_tekst)
                                     
         except Exception as e:
-            print(f"❌ En feil oppstod med {kilde_navn}: {e}")
-
-    # Sikkerhet: Beholder data for lover vi kanskje ikke fant i dag
-    for k, v in forrige_sjekk.items():
-        if k not in denne_sjekk:
-            denne_sjekk[k] = v
-
-    lagre_historikk(denne_sjekk)
+            print(f"❌ Feil med {kilde_navn}: {e}")
 
     tid_brukt = time.time() - start_tid
     print(f"\n⏱️ Ferdig på {tid_brukt:.2f} sekunder.")
 
-    if endringer_liste:
-        if forste_gang:
-            print(f"ℹ️ Første kjøring: Fant {len(endringer_liste)} lover/forskrifter. Oppretter 'fasit' uten å sende e-post.")
-        else:
-            print(f"🚨 Fant {len(endringer_liste)} faktiske endringer. Sender e-post...")
-            send_epost(endringer_liste)
+    # Send e-post KUN hvis endring > 0.0 (altså ikke første kjøring)
+    reelle_endringer = [x for x in vesentlige_endringer if x[1] > 0.0]
+    
+    if reelle_endringer:
+        send_epost(reelle_endringer)
     else:
-        print("✅ Ingen endringer funnet.")
+        print("✅ Ingen vesentlige endringer som krever varsling.")
 
 if __name__ == "__main__":
     sjekk_lovdata()
