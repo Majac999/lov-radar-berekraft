@@ -1,9 +1,9 @@
-name: LovRadar Daglig Sjekk
+name: LovRadar Ukentlig Sjekk
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Kjører kl 06:00 norsk tid (05:00 UTC)
-  workflow_dispatch:      # Gjør at du kan starte den manuelt via en knapp
+    - cron: '0 5 * * 1'  # Kjører kl 06:00 hver MANDAG (Norsk tid)
+  workflow_dispatch:      # Gjør at du fortsatt kan starte den manuelt ved behov
 
 jobs:
   kjore-radar:
