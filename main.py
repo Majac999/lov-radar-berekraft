@@ -5,7 +5,7 @@ from email.header import Header
 import os
 import difflib
 
-# --- KONFIGURASJON ---
+# --- KONFIGURASJON (MED LENKER) ---
 LOVER = {
     "Kjøpsloven": "https://lovdata.no/lov/1988-05-13-27",
     "Forbrukerkjøpsloven": "https://lovdata.no/lov/2002-06-21-34",
@@ -30,12 +30,11 @@ CACHE_DIR = "tekst_cache"
 
 def hent_lovtekst(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (LovRadar for Coop Ost)'}
+        headers = {'User-Agent': 'Mozilla/5.0 (LovRadar Bot)'}
         r = requests.get(url, headers=headers, timeout=10)
         r.encoding = 'utf-8'
         return r.text
-    except Exception as e:
-        print(f"Feil ved henting av {url}: {e}")
+    except:
         return ""
 
 def sjekk_endringer():
@@ -64,10 +63,8 @@ def sjekk_endringer():
         if not gammel_tekst: continue
             
         matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
-        likhet = matcher.ratio()
-        endring_prosent = (1 - likhet) * 100
+        endring_prosent = (1 - matcher.ratio()) * 100
         
-        # Terskel på 2%
         if endring_prosent > 2.0:
             print(f"🚨 ENDRING ({endring_prosent:.2f}%): {navn}")
             endringer.append({"navn": navn, "prosent": endring_prosent, "url": url})
@@ -86,9 +83,11 @@ def send_epost(endringer):
         print("Mangler e-postoppsett!")
         return
 
+    # Sorterer listen og fjerner duplikater
     endringer_sortert = sorted(endringer, key=lambda x: x['prosent'], reverse=True)
-    antall = len(endringer)
-    emne = f"LovRadar: {antall} lover endret denne uken"
+    
+    antall = len(endringer_sortert)
+    emne = f"LovRadar: {antall} endringer funnet"
     
     tekst = "Følgende lovendringer er oppdaget:\n\n"
     for item in endringer_sortert:
