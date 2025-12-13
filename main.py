@@ -4,10 +4,8 @@ from email.mime.text import MIMEText
 from email.header import Header
 import os
 import difflib
-import time
 
 # --- KONFIGURASJON ---
-# Her legger vi inn lenkene slik at e-posten blir nyttig!
 LOVER = {
     "Kjøpsloven": "https://lovdata.no/lov/1988-05-13-27",
     "Forbrukerkjøpsloven": "https://lovdata.no/lov/2002-06-21-34",
@@ -28,11 +26,9 @@ LOVER = {
     "Lov om bærekraftig finans": "https://lovdata.no/lov/2021-12-17-148"
 }
 
-# Mapper for å lagre "hukommelsen" til roboten
 CACHE_DIR = "tekst_cache"
 
 def hent_lovtekst(url):
-    """Henter teksten fra Lovdata (enkel versjon)"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (LovRadar for Coop Ost)'}
         r = requests.get(url, headers=headers, timeout=10)
@@ -47,45 +43,34 @@ def sjekk_endringer():
         os.makedirs(CACHE_DIR)
     
     endringer = []
-    
     print("🤖 LovRadar v5.0 (Smart Link) starter...")
     
     for navn, url in LOVER.items():
         print(f"Sjekker {navn}...")
         ny_tekst = hent_lovtekst(url)
-        
-        if not ny_tekst:
-            continue
+        if not ny_tekst: continue
             
         filnavn = os.path.join(CACHE_DIR, f"{navn}.txt")
-        
-        # Sjekk mot forrige gang
         gammel_tekst = ""
+        
         if os.path.exists(filnavn):
             with open(filnavn, "r", encoding="utf-8") as f:
                 gammel_tekst = f.read()
         
-        # Lagre den nye teksten for neste uke
+        # Overskriv alltid cache med siste versjon
         with open(filnavn, "w", encoding="utf-8") as f:
             f.write(ny_tekst)
             
-        # Hvis dette er første kjøring, ikke varsle
-        if not gammel_tekst:
-            continue
+        if not gammel_tekst: continue
             
-        # Beregn forskjell
         matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
         likhet = matcher.ratio()
         endring_prosent = (1 - likhet) * 100
         
-        # Terskel: Varsle bare hvis endring er over 2% (filtrerer småfeil)
+        # Terskel på 2%
         if endring_prosent > 2.0:
             print(f"🚨 ENDRING ({endring_prosent:.2f}%): {navn}")
-            endringer.append({
-                "navn": navn,
-                "prosent": endring_prosent,
-                "url": url
-            })
+            endringer.append({"navn": navn, "prosent": endring_prosent, "url": url})
             
     return endringer
 
@@ -96,16 +81,12 @@ def send_epost(endringer):
 
     avsender = os.environ.get("EMAIL_USER")
     passord = os.environ.get("EMAIL_PASS")
-    mottaker = avsender  # Sender til deg selv
-
+    
     if not avsender or not passord:
         print("Mangler e-postoppsett!")
         return
 
-    # Sorter listen: Størst endring øverst
     endringer_sortert = sorted(endringer, key=lambda x: x['prosent'], reverse=True)
-
-    # Bygg e-posten
     antall = len(endringer)
     emne = f"LovRadar: {antall} lover endret denne uken"
     
@@ -114,22 +95,21 @@ def send_epost(endringer):
         tekst += f"🔴 {item['navn']} (Endring: {item['prosent']:.1f}%)\n"
         tekst += f"   Lenke: {item['url']}\n\n"
     
-    tekst += "-"*30 + "\n"
-    tekst += "Tips: Kopier denne listen inn i din 'Lov-radar Bærekraft & Handel' Gem for analyse."
+    tekst += "-"*30 + "\nTips: Kopier til din 'Lov-radar Bærekraft & Handel' Gem."
 
     msg = MIMEText(tekst, "plain", "utf-8")
     msg["Subject"] = Header(emne, "utf-8")
     msg["From"] = avsender
-    msg["To"] = mottaker
+    msg["To"] = avsender
 
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.login(avsender, passord)
         server.send_message(msg)
         server.quit()
-        print(f"📧 E-post sendt til {mottaker}!")
+        print(f"📧 E-post sendt!")
     except Exception as e:
-        print(f"Feil ved sending av e-post: {e}")
+        print(f"Feil: {e}")
 
 if __name__ == "__main__":
     funn = sjekk_endringer()
