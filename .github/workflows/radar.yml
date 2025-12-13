@@ -29,10 +29,11 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
         run: python main.py
 
-      - name: Lagre cache tilbake til GitHub
+    - name: Lagre cache tilbake til GitHub
         run: |
           git config --global user.name 'LovRadar Bot'
           git config --global user.email 'bot@noreply.github.com'
           git add tekst_cache/
-          # Her er endringen: Vi legger til 'git pull --rebase' før 'git push'
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git pull --rebase && git push)
+          # Her er magien: Vi committer -> henter nytt (pull --rebase) -> og SÅ pusher vi.
+          # Dette fletter endringene pent sammen uten kræsj.
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git pull --rebase origin main && git push)
