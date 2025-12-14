@@ -36,7 +36,7 @@ Det sjekker om det har skjedd **vesentlige endringer** i lovteksten (ignorerer f
 
 ---
 
-## 🤖 Hvordan det virker (V4.0)
+## 🤖 Hvordan det virker (V5.6)
 Når radaren kjører på mandager:
 1. **Laster ned** siste versjon av alle lover fra Lovdata.
 2. **Vasker teksten:** Fjerner "støy" som HTML-koder, datoer for sist endret, og formatering.
