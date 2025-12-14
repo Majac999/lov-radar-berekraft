@@ -15,7 +15,8 @@ jobs:
     steps:
       - name: Hent koden
         uses: actions/checkout@v4
-
+        with:
+          clean: true # Tvinger fullstendig fjerning av ALLE spor fra tidligere kjøringer
       - name: Sett opp Python
         uses: actions/setup-python@v5
         with:
