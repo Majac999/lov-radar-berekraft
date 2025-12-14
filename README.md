@@ -5,7 +5,7 @@ Et Open Source-verktøy for overvåking av regelverk knyttet til miljø, byggeva
 ## 🔨 Om prosjektet
 Dette er et privat utviklingsprosjekt for å forenkle hverdagen til ansatte i byggevarebransjen. Målet er å fange opp endringer i et bredt spekter av lover og forskrifter raskere, for å sikre compliance, trygge produkter og korrekte kundesvar.
 
-**Status:** 🟢 Live (V4.0 - Smart ukesrapport med støyfilter)
+Status: 🟢 Live (V5.6 - Med Lenker og Fikset Cache)
 
 ## 🎯 Hva overvåker verktøyet?
 Systemet gjør automatiske oppslag mot Lovdata **hver mandag morgen kl. 06:00**.
