@@ -30,7 +30,7 @@ jobs:
         run: python main.py
 
     - name: Lagre cache tilbake til GitHub
-        run: |
+        run: |radar.yml
           git config --global user.name 'LovRadar Bot'
           git config --global user.email 'bot@noreply.github.com'
           git add tekst_cache/
