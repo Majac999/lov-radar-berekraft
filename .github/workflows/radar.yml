@@ -3,8 +3,7 @@ name: LovRadar Ukentlig Sjekk
 on:
   schedule:
     - cron: '0 5 * * 1'  # Kjører kl 06:00 hver MANDAG (Norsk tid)
-  workflow_dispatch:     # Gjør at du fortsatt kan starte den manuelt ved behov
-  # KUN FOR FEILSØKING: Tvinger ny commit SHA
+  workflow_dispatch:     # Gjør at du kan starte den manuelt ved behov
 
 jobs:
   kjore-radar:
@@ -16,15 +15,8 @@ jobs:
       - name: Hent koden
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 👈 NYTT: Henter full historikk for å unngå feil SHA
-          clean: true    # Tvinger fullstendig fjerning av ALLE spor fra tidligere kjøringer
-
-      - name: 🔍 Debug Fil-sjekk (Før Kjøring) # 👈 NYTT: Sjekker om main.py ligger skjult
-        run: |
-          echo "Arbeidsmappe:"
-          ls -la
-          echo "Sjekker for fastlåst main.py:"
-          find . -name "main.py"
+          fetch-depth: 0 # Henter full historikk for å unngå feil
+          clean: true    # Sikrer at vi alltid starter med blanke ark
 
       - name: Sett opp Python
         uses: actions/setup-python@v5
@@ -38,12 +30,12 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-        run: python lovradar.py # PEKER NÅ PÅ RIKTIG FILNAVN ETTER RENAME
+        run: python lovradar.py
 
       - name: Lagre cache tilbake til GitHub
         run: |
           git config --global user.name 'LovRadar Bot'
           git config --global user.email 'bot@noreply.github.com'
           git add tekst_cache/
-          # Hjelper med å løse Git-konflikter ved å hente (pull) før pushing
+          # Sjekker om det er endringer før vi committer for å unngå feilmeldinger
           git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git pull --rebase origin main && git push)
