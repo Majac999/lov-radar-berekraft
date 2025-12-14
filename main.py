@@ -31,7 +31,7 @@ CACHE_DIR = "tekst_cache"
 def hent_lovtekst(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (LovRadar Bot)'}
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=15)
         r.encoding = 'utf-8'
         return r.text
     except Exception as e:
@@ -43,7 +43,7 @@ def sjekk_endringer():
         os.makedirs(CACHE_DIR)
 
     endringer = []
-    print("🤖 LovRadar v5.6 (Korrekte URL-er) starter...")
+    print("🤖 LovRadar v6.0 starter...")
 
     for navn, url in LOVER.items():
         print(f"Sjekker {navn}...")
@@ -59,7 +59,6 @@ def sjekk_endringer():
             with open(filnavn, "r", encoding="utf-8") as f:
                 gammel_tekst = f.read()
 
-        # Lagre ALLTID ny tekst
         with open(filnavn, "w", encoding="utf-8") as f:
             f.write(ny_tekst)
 
@@ -73,7 +72,11 @@ def sjekk_endringer():
 
         if endring_prosent > 2.0:
             print(f"  🔴 Endring oppdaget: {endring_prosent:.1f}%")
-            endringer.append({"navn": navn, "prosent": endring_prosent, "url": url})
+            endringer.append({
+                "navn": navn,
+                "prosent": endring_prosent,
+                "url": url
+            })
         else:
             print(f"  ✅ Ingen vesentlig endring ({endring_prosent:.2f}%)")
 
@@ -88,28 +91,28 @@ def send_epost(endringer):
     passord = os.environ.get("EMAIL_PASS")
 
     if not avsender or not passord:
-        print("⚠️ Mangler e-post credentials (EMAIL_USER/EMAIL_PASS)!")
+        print("⚠️ Mangler EMAIL_USER eller EMAIL_PASS!")
         return
 
     endringer_sortert = sorted(endringer, key=lambda x: x['prosent'], reverse=True)
     antall = len(endringer)
 
-    # Bygg e-posten med lenker
+    # VIKTIG: Her bygges e-posten MED URL-er
     tekst = "🚨 LOVENDRINGER OPPDAGET 🚨\n\n"
     tekst += f"Antall lover med endringer: {antall}\n"
-    tekst += "=" * 50 + "\n\n"
-    
+    tekst += "=" * 60 + "\n\n"
+
     for item in endringer_sortert:
         tekst += f"🔴 {item['navn']}\n"
         tekst += f"   Endring: {item['prosent']:.1f}%\n"
-        tekst += f"   Lenke: {item['url']}\n\n"
+        tekst += f"   📎 {item['url']}\n\n"
 
-    tekst += "=" * 50 + "\n"
-    tekst += "Tips: Kopier lenkene til din 'Lov-radar Bærekraft & Handel' Gem.\n"
-    tekst += "Generert av LovRadar v5.6"
+    tekst += "=" * 60 + "\n"
+    tekst += "Tips: Klikk på lenken og kopier lovteksten til din AI-bot.\n"
+    tekst += "Generert av LovRadar v6.0\n"
 
     msg = MIMEText(tekst, "plain", "utf-8")
-    msg["Subject"] = Header(f"🚨 LovRadar: {antall} lovendring(er) oppdaget", "utf-8")
+    msg["Subject"] = Header(f"🚨 LovRadar: {antall} lovendring(er)", "utf-8")
     msg["From"] = avsender
     msg["To"] = avsender
 
@@ -120,7 +123,7 @@ def send_epost(endringer):
         server.quit()
         print(f"\n📧 E-post sendt med {antall} endring(er)!")
     except Exception as e:
-        print(f"❌ Feil ved sending av e-post: {e}")
+        print(f"❌ Feil ved sending: {e}")
 
 if __name__ == "__main__":
     funn = sjekk_endringer()
