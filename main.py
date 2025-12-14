@@ -5,7 +5,7 @@ from email.header import Header
 import os
 import difflib
 
-# --- KONFIGURASJON (ALLE LOVER MED URL) ---
+# --- KONFIGURASJON ---
 LOVER = {
     "Kjøpsloven": "https://lovdata.no/lov/1988-05-13-27",
     "Forbrukerkjøpsloven": "https://lovdata.no/lov/2002-06-21-34",
@@ -30,82 +30,73 @@ CACHE_DIR = "tekst_cache"
 
 def hent_lovtekst(url):
     try:
-        headers = {"User-Agent": "LovRadar/CoopOst"}
+        headers = {'User-Agent': 'Mozilla/5.0 (LovRadar Bot)'}
         r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        r.encoding = "utf-8"
+        r.encoding = 'utf-8'
         return r.text
     except Exception as e:
-        print(f"Feil ved henting av {url}: {e}")
+        print(f"Feil: {e}")
         return ""
 
 def sjekk_endringer():
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR)
-
+    
     endringer = []
-    print("🤖 LovRadar (v5.2) starter...")
-
+    print("🤖 LovRadar v5.5 (URL Edition) starter...")
+    
     for navn, url in LOVER.items():
-        print(f"Sjekker {navn} …")
+        print(f"Sjekker {navn}...")
         ny_tekst = hent_lovtekst(url)
-        if not ny_tekst:
-            continue
-
+        if not ny_tekst: continue
+            
         filnavn = os.path.join(CACHE_DIR, f"{navn}.txt")
         gammel_tekst = ""
-
+        
         if os.path.exists(filnavn):
             with open(filnavn, "r", encoding="utf-8") as f:
                 gammel_tekst = f.read()
-
-        # Lagre ny versjon
+        
+        # Lagre ALLTID ny tekst
         with open(filnavn, "w", encoding="utf-8") as f:
             f.write(ny_tekst)
-
-        if not gammel_tekst:
-            continue
-
+            
+        if not gammel_tekst: continue
+            
         matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
-        endring_prosent = (1 - matcher.ratio()) * 100
-
-        # Terskel på 2%
+        likhet = matcher.ratio()
+        endring_prosent = (1 - likhet) * 100
+        
         if endring_prosent > 2.0:
-            endringer.append({
-                "navn": navn,
-                "prosent": round(endring_prosent, 2),
-                "url": url
-            })
-
+            endringer.append({"navn": navn, "prosent": endring_prosent, "url": url})
+            
     return endringer
 
 def send_epost(endringer):
     if not endringer:
-        print("Ingen store endringer funnet.")
+        print("Ingen endringer funnet.")
         return
 
     avsender = os.environ.get("EMAIL_USER")
     passord = os.environ.get("EMAIL_PASS")
-
+    
     if not avsender or not passord:
-        print("Mangler e-postoppsett!")
+        print("Mangler e-post passord!")
         return
 
-    # Sorterer listen: Størst endring øverst
-    endringer = sorted(endringer, key=lambda x: x["prosent"], reverse=True)
-
-    tekst = "LovRadar – oppdagede endringer (MED LENKER):\n\n"
-    for e in endringer:
-        tekst += (
-            f"🔴 {e['navn']} ({e['prosent']} % endring)\n"
-            f"URL: {e['url']}\n\n"
-        )
+    endringer_sortert = sorted(endringer, key=lambda x: x['prosent'], reverse=True)
+    antall = len(endringer)
     
-    tekst += "-"*30 + "\nTips: Lim inn i din Gem for analyse."
+    # Her bygger vi e-posten MED lenker
+    tekst = "Følgende lovendringer er oppdaget (NÅ MED LENKER):\n\n"
+    for item in endringer_sortert:
+        tekst += f"🔴 {item['navn']} (Endring: {item['prosent']:.1f}%)\n"
+        tekst += f"   Lenke: {item['url']}\n\n"
+    
+    tekst += "-"*30 + "\nTips: Kopier til din 'Lov-radar Bærekraft & Handel' Gem."
 
     msg = MIMEText(tekst, "plain", "utf-8")
-    # Jeg endrer emnet her også, så du ser at det er NY kode:
-    msg["Subject"] = Header("LovRadar: Nye endringer med lenker", "utf-8")
+    msg["Subject"] = Header(f"LovRadar: {antall} endringer m/lenker", "utf-8")
     msg["From"] = avsender
     msg["To"] = avsender
 
@@ -114,9 +105,9 @@ def send_epost(endringer):
         server.login(avsender, passord)
         server.send_message(msg)
         server.quit()
-        print("📧 E-post sendt OK")
+        print(f"📧 E-post sendt!")
     except Exception as e:
-        print(f"Feil ved sending: {e}")
+        print(f"Feil: {e}")
 
 if __name__ == "__main__":
     funn = sjekk_endringer()
