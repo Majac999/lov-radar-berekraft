@@ -3,13 +3,13 @@ name: LovRadar Ukentlig Sjekk
 on:
   schedule:
     - cron: '0 5 * * 1'  # Kjører kl 06:00 hver MANDAG (Norsk tid)
-  workflow_dispatch:      # Gjør at du fortsatt kan starte den manuelt ved behov
+  workflow_dispatch:     # Gjør at du fortsatt kan starte den manuelt ved behov
 
 jobs:
   kjore-radar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # VIKTIG: Gir lov til å lagre cache tilbake til GitHub
+      contents: write      # VIKTIG: Gir lov til å lagre cache tilbake til GitHub
 
     steps:
       - name: Hent koden
@@ -27,10 +27,10 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-        run: python main.py
+        run: python lovradar.py # 👈 ENDRET FRA main.py
 
-    - name: Lagre cache tilbake til GitHub
-        run: |radar.yml
+      - name: Lagre cache tilbake til GitHub
+        run: |
           git config --global user.name 'LovRadar Bot'
           git config --global user.email 'bot@noreply.github.com'
           git add tekst_cache/
