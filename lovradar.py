@@ -1,95 +1,130 @@
-"""
-Dette er vår nye, smarte Arbeidsrett-bot.
-Versjon 2: Leser CSV-filen.
-"""
-from __future__ import annotations
-
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 import os
-from typing import AsyncIterable
+import difflib
 
-import fastapi_poe as fp
-from modal import App, Image, asgi_app
-import pandas as pd  # Importerer pandas
+# --- KONFIGURASJON ---
+LOVER = {
+    "Kjøpsloven": "https://lovdata.no/dokument/NL/lov/1988-05-13-27",
+    "Forbrukerkjøpsloven": "https://lovdata.no/dokument/NL/lov/2002-06-21-34",
+    "Avhendingslova": "https://lovdata.no/dokument/NL/lov/1992-07-03-93",
+    "Markedsføringsloven": "https://lovdata.no/dokument/NL/lov/2009-01-09-2",
+    "Angrerettloven": "https://lovdata.no/dokument/NL/lov/2014-06-20-27",
+    "E-handelsloven": "https://lovdata.no/dokument/NL/lov/2003-05-23-35",
+    "Finansavtaleloven": "https://lovdata.no/dokument/NL/lov/2020-12-18-146",
+    "Åpenhetsloven": "https://lovdata.no/dokument/NL/lov/2021-06-18-99",
+    "Arbeidsmiljøloven": "https://lovdata.no/dokument/NL/lov/2005-06-17-62",
+    "Likestillings- og diskrimineringsloven": "https://lovdata.no/dokument/NL/lov/2017-06-16-51",
+    "Plan- og bygningsloven": "https://lovdata.no/dokument/NL/lov/2008-06-27-71",
+    "Forurensningsloven": "https://lovdata.no/dokument/NL/lov/1981-03-13-6",
+    "Naturmangfoldloven": "https://lovdata.no/dokument/NL/lov/2009-06-19-100",
+    "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
+    "Regnskapsloven": "https://lovdata.no/dokument/NL/lov/1998-07-17-56",
+    "Bokføringsloven": "https://lovdata.no/dokument/NL/lov/2004-11-19-73",
+    "Lov om bærekraftig finans": "https://lovdata.no/dokument/NL/lov/2021-12-17-148"
+}
 
-# --- DINE NØKLER ---
-bot_access_key = "HiycA1BQ691yic4LpzOH3bXyqjRmK5xh"
-bot_name = "Arbeidsrett"  # Pass på at dette er bot-navnet fra Poe
-# ---------------------
+CACHE_DIR = "tekst_cache"
 
-# --- Last inn CSV-filen ---
-CSV_FILENAME = "CSV_FILENAME = "kunnskapsbase.tsv"" # Filen du flyttet og ga nytt navn
+def hent_lovtekst(url):
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (LovRadar Bot)'}
+        r = requests.get(url, headers=headers, timeout=10)
+        r.encoding = 'utf-8'
+        return r.text
+    except Exception as e:
+        print(f"Feil ved henting av {url}: {e}")
+        return ""
 
-script_dir = os.path.dirname(__file__)
-csv_file_path = os.path.join(script_dir, CSV_FILENAME)
-
-try:
-    df_kunnskap = pd.read_csv(csv_file_path)
-    df_kunnskap = df_kunnskap.fillna("") # Fyller ut tomme celler
-    print(f"Vellykket: '{CSV_FILENAME}' er lastet inn.")
-except FileNotFoundError:
-    print(f"KRITISK FEIL: Fant ikke filen: '{CSV_FILENAME}'")
-    print(f"Sjekk at filen er kopiert til mappen: {script_dir}")
-    df_kunnskap = None
-# ----------------------------
-
-class SmartBot(fp.PoeBot):
-    async def get_response(
-        self, request: fp.QueryRequest
-    ) -> AsyncIterable[fp.PartialResponse]:
-
-        last_message = request.query[-1].content
-
-        if df_kunnskap is not None and not df_kunnskap.empty:
-            try:
-                # Søker etter en nøyaktig match i 'bruker_utsagn'-kolonnen
-                match = df_kunnskap[df_kunnskap['bruker_utsagn'].str.lower() == last_message.lower()]
-
-                if not match.empty:
-                    # Henter data fra den første matchen
-                    intent = match.iloc[0]['intent_type']
-                    begrep = match.iloc[0]['normalisert_begrep']
-                    mapping = match.iloc[0]['forventet_mapping']
-                    dialog_nivaa = match.iloc[0]['dialog_nivaa']
-                    oppfolging = match.iloc[0]['oppfoelgingsspoersmaal_1']
-
-                    if dialog_nivaa == 1 and oppfolging:
-                        # Hvis dialog_nivaa er 1, still oppfølgingsspørsmålet
-                        yield fp.PartialResponse(text=oppfolging)
-                    else:
-                        # Hvis dialog_nivaa er 0, gi et direkte svar
-                        svar_tekst = f"Fant match!\nTema: {begrep}\nMapping: {mapping}"
-                        yield fp.PartialResponse(text=svar_tekst)
-                else:
-                    yield fp.PartialResponse(text=f"Fant ingen nøyaktig match for: '{last_message}'")
-            except KeyError as e:
-                yield fp.PartialResponse(text=f"Feil: CSV-filen mangler en nøkkelkolonne: {e}")
+def sjekk_endringer():
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+    
+    endringer = []
+    print("🤖 LovRadar v5.6 (Korrekte URL-er) starter...")
+    
+    for navn, url in LOVER.items():
+        print(f"Sjekker {navn}...")
+        ny_tekst = hent_lovtekst(url)
+        if not ny_tekst:
+            print(f"  ⚠️ Kunne ikke hente {navn}")
+            continue
+            
+        filnavn = os.path.join(CACHE_DIR, f"{navn}.txt")
+        gammel_tekst = ""
+        
+        if os.path.exists(filnavn):
+            with open(filnavn, "r", encoding="utf-8") as f:
+                gammel_tekst = f.read()
+        
+        # Lagre ALLTID ny tekst
+        with open(filnavn, "w", encoding="utf-8") as f:
+            f.write(ny_tekst)
+            
+        if not gammel_tekst:
+            print(f"  ✅ Førstegangs lagring av {navn}")
+            continue
+            
+        matcher = difflib.SequenceMatcher(None, gammel_tekst, ny_tekst)
+        likhet = matcher.ratio()
+        endring_prosent = (1 - likhet) * 100
+        
+        if endring_prosent > 2.0:
+            print(f"  🔴 Endring oppdaget: {endring_prosent:.1f}%")
+            endringer.append({"navn": navn, "prosent": endring_prosent, "url": url})
         else:
-            yield fp.PartialResponse(text="Feil: Kunnskapsbasen (CSV) er ikke lastet.")
+            print(f"  ✅ Ingen vesentlig endring ({endring_prosent:.2f}%)")
+            
+    return endringer
 
+def send_epost(endringer):
+    if not endringer:
+        print("\n✅ Ingen endringer funnet.")
+        return
 
-# Alle bibliotekene koden vår trenger
-REQUIREMENTS = ["fastapi-poe", "pandas"]
-image = (
-    Image.debian_slim()
-    .pip_install(*REQUIREMENTS)
-    .env({"POE_ACCESS_KEY": bot_access_key}) # DENNE ER NÅ RIKTIG
-    .mount(modal.Mount.from_local_dir(
-        local_path=".", 
-        remote_path="/root"
-    ))
-)
-app = App("arbeidsrett-bot-poe")
+    avsender = os.environ.get("EMAIL_USER")
+    passord = os.environ.get("EMAIL_PASS")
+    
+    if not avsender or not passord:
+        print("⚠️ Mangler e-post credentials (EMAIL_USER/EMAIL_PASS)!")
+        return
 
+    endringer_sortert = sorted(endringer, key=lambda x: x['prosent'], reverse=True)
+    antall = len(endringer)
+    
+    # Bygg e-posten med lenker
+    tekst = "🚨 LOVENDRINGER OPPDAGET 🚨\n\n"
+    tekst += f"Antall lover med endringer: {antall}\n"
+    tekst += "=" * 50 + "\n\n"
+    
+    for item in endringer_sortert:
+        tekst += f"🔴 {item['navn']}\n"
+        tekst += f"   Endring: {item['prosent']:.1f}%\n"
+        tekst += f"   Lenke: {item['url']}\n\n"
+    
+    tekst += "=" * 50 + "\n"
+    tekst += "Tips: Kopier lenkene til din 'Lov-radar Bærekraft & Handel' Gem.\n"
+    tekst += "Generert av LovRadar v5.6"
 
-@app.function(image=image)
-@asgi_app()
-def fastapi_app():
-    bot = SmartBot() 
-    app = fp.make_app(
-        bot,
-        access_key=bot_access_key,
-        bot_name=bot_name,
-        allow_without_key=not (bot_access_key and bot_name),
-    )
-    return app
+    msg = MIMEText(tekst, "plain", "utf-8")
+    msg["Subject"] = Header(f"🚨 LovRadar: {antall} lovendring(er) oppdaget", "utf-8")
+    msg["From"] = avsender
+    msg["To"] = avsender
+
+    try:
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server.login(avsender, passord)
+        server.send_message(msg)
+        server.quit()
+        print(f"\n📧 E-post sendt med {antall} endring(er)!")
+    except Exception as e:
+        print(f"❌ Feil ved sending av e-post: {e}")
+
+if __name__ == "__main__":
+    funn = sjekk_endringer()
+    send_epost(funn)
+   
+
 
