@@ -1,23 +1,6 @@
 
 
-	<!--[if lt IE 9]>
-	<link href="/resources/css/ld-ie.css?25-12-13-1704" rel="stylesheet">
-	<![endif]-->
-				<link href="/resources/css/document/lovdata.document.gratis.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/css/lovdata.document.tables.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/css/lovdata.document.web.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/css/lovdata.document.css?25-12-13-1704" rel="stylesheet">
 
-
-	<!-- Le scripts -->
-	<script src="/resources/js/jquery-3.7.1.min.js?25-12-13-1704"></script>
-	<script src="/resources/js/mathjax/tex-mml-chtml.js?25-12-13-1704"></script>
-		<script>
-			var dev = false;
-		</script>
-		<!-- Plausible -->
-		<script defer data-domain="lovdata.no" src="https://plausible.io/js/plausible.js"></script>
-		<!-- End Plausible -->
 
 	<script src="/resources/js/modernizr.min.js?25-12-13-1704"></script>
 	<script src="/resources/js/bootstrap.min.js?25-12-13-1704"></script>
