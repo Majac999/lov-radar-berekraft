@@ -92,3 +92,4 @@ def fastapi_app():
         allow_without_key=not (bot_access_key and bot_name),
     )
     return app
+
