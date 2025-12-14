@@ -16,7 +16,16 @@ jobs:
       - name: Hent koden
         uses: actions/checkout@v4
         with:
-          clean: true # Tvinger fullstendig fjerning av ALLE spor fra tidligere kjøringer
+          fetch-depth: 0 # 👈 NYTT: Henter full historikk for å unngå feil SHA
+          clean: true    # Tvinger fullstendig fjerning av ALLE spor fra tidligere kjøringer
+
+      - name: 🔍 Debug Fil-sjekk (Før Kjøring) # 👈 NYTT: Sjekker om main.py ligger skjult
+        run: |
+          echo "Arbeidsmappe:"
+          ls -la
+          echo "Sjekker for fastlåst main.py:"
+          find . -name "main.py"
+
       - name: Sett opp Python
         uses: actions/setup-python@v5
         with:
@@ -38,4 +47,3 @@ jobs:
           git add tekst_cache/
           # Hjelper med å løse Git-konflikter ved å hente (pull) før pushing
           git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git pull --rebase origin main && git push)
-        
