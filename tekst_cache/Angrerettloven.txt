@@ -1,20 +1,5 @@
 
-<!DOCTYPE html
->
-<html lang="no" class="no-js">
-
-<head>
-  
-	<!-- Le styles -->
-	<link href="/resources/css/bootstrap.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/fonts/ss-symbolicons-block/ss-symbolicons-block.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/fonts/ss-symbolicons-line/ss-symbolicons-line.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/fonts/feed/ss-feed-icons.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/fonts/ss-standard/ss-standard.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/fonts/ss-social-regular/ss-social.css?25-12-13-1704" rel="stylesheet">
-	<link href="/resources/select2/select2.css?25-12-13-1704" rel="stylesheet">
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Caveat">
-	<!-- Modaal -->
+<!
 	<link rel="stylesheet" href="/resources/css/modaal.min.css">
 
 		<link href="/resources/css/app.css?25-12-13-1704" rel="stylesheet">
