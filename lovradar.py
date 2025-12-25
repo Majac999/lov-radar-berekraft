@@ -22,29 +22,22 @@ LOVER = {
     "TEK17 (Kap 9 Ytre miljø)": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
 
     # === 2. SOFT LAW (Tolkning & Markedsføring) ===
-    # Denne avgjør om Coop får bot for reklamen sin:
     "Forbrukertilsynet: Bærekraftveileder": "https://www.forbrukertilsynet.no/lov-og-rett/veiledninger-og-retningslinjer/forbrukertilsynets-veiledning-om-bruk-av-baerekraftpastander-markedsforing",
-    # Her ser du hvilke stoffer som snart blir forbudt (REACH):
     "Miljødirektoratet: Kjemikalienyheter": "https://www.miljodirektoratet.no/ansvarsomrader/kjemikalier/reach/",
-    # Viktig for proff-salg til kommuner:
     "DFØ: Miljøkrav i offentlige innkjøp": "https://www.anskaffelser.no/berekraftige-anskaffingar/klima-og-miljo-i-offentlige-anskaffelser",
-    # Bransjestandarden (Svanemerket strammer ofte inn først):
     "Svanemerket: Nye krav (Høringer)": "https://svanemerket.no/horinger/",
 
-    # === 3. FREMTID & STRATEGI (EØS/EU - Varsler "Tsunamien") ===
-    # Her ser du EU-regler (som ESPR) lenge før de blir norsk lov:
+    # === 3. FREMTID & STRATEGI (EØS/EU) ===
     "Regjeringen: EØS-notater (Klima/Miljø)": "https://www.regjeringen.no/no/tema/europapolitikk/eos-notatbasen/id686653/?topic=klima-og-miljo",
-    # Her ser du hva norske myndigheter planlegger:
-    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoyringer/"
+    
+    # ✅ HER ER DEN RIKTIGE STRATEGIEN FOR FASE 1:
+    # Vi overvåker hovedlisten. Hvis en ny høring dukker opp her, endres siden -> Alarm.
+    "Miljødirektoratet: Høringer (Oversikt)": "https://www.miljodirektoratet.no/hoeringer/"
 }
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
-
-# Terskel: 0.5% (Fanger opp små, men viktige juridiske justeringer)
 THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
-
-# HUSK: Bytt ut 'DITT_BRUKERNAVN'
-USER_AGENT = "LovRadar-Complete/8.0 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
+USER_AGENT = "LovRadar-Complete/8.5 (Internal Compliance Tool; +https://github.com/Majac999)" 
 
 # E-post innstillinger
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -57,7 +50,6 @@ EMAIL_TO = os.environ.get("EMAIL_RECIPIENT", EMAIL_USER)
 
 def make_session():
     session = requests.Session()
-    # Robust retry som håndterer både serverfeil og rate-limiting (429)
     retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
@@ -81,16 +73,16 @@ def clean_html(html_content: str) -> str:
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         
-        # 1. Prøv å finne hovedinnholdet (snevrer inn søket)
+        # 1. Prøv å finne hovedinnholdet
         main_content = soup.find("main") or soup.find(id="content") or soup.find(id="main") or soup.find("article")
         if main_content:
             soup = main_content
 
-        # 2. Fjern teknisk støy (script, style, nav osv.)
+        # 2. Fjern teknisk støy
         for element in soup(["script", "style", "nav", "footer", "header", "noscript", "iframe", "meta", "button", "aside", "form"]):
             element.decompose() 
             
-        # 3. Fjern UI-elementer (Print, Share, TOC, Nyhetsbrev, Cookies)
+        # 3. Fjern UI-elementer
         noisy_classes = re.compile(r'(share|social|print|tool|toc|breadcrumb|menu|newsletter|cookie|popup|banner|related|filter)', re.IGNORECASE)
         for div in soup.find_all(class_=noisy_classes):
             div.decompose()
@@ -145,7 +137,7 @@ def unified_diff(old: str, new: str, context=3) -> str:
         elif opcode == 'replace':
             diff.append(f"✏️ [ENDRET]: {' '.join(old_words[a0:a1])} -> {' '.join(new_words[b0:b1])}")
             
-    return "\n".join(diff)[:5000] # Litt større grense for å fange EU-tekster
+    return "\n".join(diff)[:5000]
 
 # --- KJERNEFUNKSJONER ---
 
@@ -162,7 +154,6 @@ def sjekk_endringer():
             etag = prev_entry.get("etag")
             headers = {"If-None-Match": etag} if etag else {}
 
-            # Økt timeout fordi Regjeringen/EØS-sider kan være trege
             r = sess.get(url, headers=headers, timeout=(10, 30))
             
             if r.status_code == 304:
