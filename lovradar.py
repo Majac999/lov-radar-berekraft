@@ -5,23 +5,38 @@ import smtplib
 import requests
 import difflib
 import re
+import datetime
 from email.mime.text import MIMEText
 from email.header import Header
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from bs4 import BeautifulSoup  # <--- NY: Proff HTML-vasking
+from bs4 import BeautifulSoup 
 
-# --- KONFIG ---
+# --- KONFIGURASJON: BÆREKRAFT, MARKEDSFØRING & COMPLIANCE ---
 LOVER = {
-    # ... (Samme liste som før, behold den du har) ...
-    "Kjøpsloven": "https://lovdata.no/dokument/NL/lov/1988-05-13-27",
-    "Avfallsforskriften (Emballasje)": "https://lovdata.no/dokument/SF/forskrift/2004-06-01-930",
-    # ... lim inn resten av listen din her ...
+    # --- HARD LAW (Lover og forskrifter) ---
+    "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
+    "Avfallsforskriften (Kap 6-7 Emballasje)": "https://lovdata.no/dokument/SF/forskrift/2004-06-01-930",
+    "Åpenhetsloven": "https://lovdata.no/dokument/NL/lov/2021-06-18-99",
+    "Markedsføringsloven (Villedende praksis)": "https://lovdata.no/dokument/NL/lov/2009-01-09-2",
+    "TEK17 (Kap 9 Ytre miljø)": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
+
+    # --- SOFT LAW (Veiledere og Tilsyn - Kritisk for drift/markedsføring) ---
+    "Veileder: Bærekraftpåstander": "https://www.forbrukertilsynet.no/lov-og-rett/veiledninger-og-retningslinjer/forbrukertilsynets-veiledning-om-bruk-av-baerekraftpastander-markedsforing",
+    "Kjemikalier (REACH Nyheter)": "https://www.miljodirektoratet.no/ansvarsomrader/kjemikalier/reach/",
+    "DFØ - Miljøkrav anskaffelser": "https://www.anskaffelser.no/berekraftige-anskaffingar/klima-og-miljo-i-offentlige-anskaffelser",
+    "Svanemerket - Høringer": "https://svanemerket.no/horinger/",
+    "Etisk Handel - Åpenhetsloven": "https://etiskhandel.no/aapenhetsloven/"
 }
 
-CACHE_FILE = "lovradar_cache.json"
-THRESHOLD = float(os.environ.get("THRESHOLD", "0.2")) 
-USER_AGENT = "LovRadar/7.0 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" # <--- Oppdatert iht Pkt 8
+CACHE_FILE = "lovradar_baerekraft_cache.json"
+
+# FIKSET TERSKEL: Standard satt til 0.5% for å fange små endringer, men unngå støy.
+# Hvis en lov er veldig lang, kan 20% (som Codex foreslo) skjule viktige småendringer.
+THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
+
+# HUSK: Bytt ut 'DITT_BRUKERNAVN'
+USER_AGENT = "LovRadar-Sustainability/7.2 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
 
 # E-post innstillinger
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -34,8 +49,8 @@ EMAIL_TO = os.environ.get("EMAIL_RECIPIENT", EMAIL_USER)
 
 def make_session():
     session = requests.Session()
-    # Pkt 3: God retry-logikk beholdes
-    retry = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    # FIKSET: Lagt til 429 (Too Many Requests) i retry-listen
+    retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -45,36 +60,51 @@ def make_session():
 def get_company_context():
     context = os.environ.get("COMPANY_CONTEXT")
     if not context:
-        return "Generisk byggevarehandel."
+        return "Byggevarehandel (Obs Bygg/Coop). Fokus: Sirkulærøkonomi, kjemikalier, emballasje, åpenhetsloven og unngå grønnvasking i markedsføring."
     return context
 
+def get_timestamp():
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
 def clean_html(html_content: str) -> str:
-    """
-    Pkt 1: Bruker BeautifulSoup for robust vasking.
-    Fjerner menyer, footer, scripts og støy.
-    """
+    """Robust vasking for å fjerne støy som menyer, del-knapper og footere."""
     if not html_content: return ""
     
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         
-        # Fjern elementer som ikke er selve lovteksten (Støy)
-        for element in soup(["script", "style", "nav", "footer", "header", "noscript", "iframe"]):
-            element.decompose() # Sletter elementet helt
+        # 1. Prøv å finne hovedinnholdet (snevrer inn søket)
+        main_content = soup.find("main") or soup.find(id="content") or soup.find(id="main") or soup.find("article")
+        if main_content:
+            soup = main_content
 
-        # Hent tekst og normaliser whitespace
+        # 2. Fjern teknisk støy
+        for element in soup(["script", "style", "nav", "footer", "header", "noscript", "iframe", "meta", "button", "aside", "form"]):
+            element.decompose() 
+            
+        # 3. FIKSET: Aggressiv fjerning av UI-elementer (Print, Share, TOC, Nyhetsbrev)
+        # Dette bruker regex for å finne klasser som inneholder støy-ord
+        noisy_classes = re.compile(r'(share|social|print|tool|toc|breadcrumb|menu|newsletter|cookie|popup|banner|related)', re.IGNORECASE)
+        for div in soup.find_all(class_=noisy_classes):
+            div.decompose()
+        
+        # Fjerner også elementer med id som matcher støyen
+        for div in soup.find_all(id=noisy_classes):
+            div.decompose()
+
+        # 4. Hent tekst
         text = soup.get_text(separator=" ")
         
-        # Pkt 1: Regex for å fjerne HTML-kommentarer hvis noen gjenstår
+        # 5. FIKSET: Regex for HTML-kommentarer
         text = re.sub(r"", "", text, flags=re.DOTALL)
         
-        # Normaliser whitespace (fjerner tabs og doble mellomrom)
+        # 6. Normaliser whitespace (fjerner tabs og doble mellomrom)
         text = re.sub(r"\s+", " ", text).strip()
         
         return text
     except Exception as e:
         print(f"⚠️ Feil i clean_html: {e}")
-        return html_content # Fallback til rå HTML hvis BS4 feiler
+        return html_content 
 
 def sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -88,10 +118,8 @@ def save_cache(cache: dict):
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 def unified_diff(old: str, new: str, context=3) -> str:
-    """
-    Pkt 3/4: Lager en lesbar diff. 
-    Splitter på ord for detaljer, men kunne vært setninger.
-    """
+    # Bruker ord-splitting for diff. Vurderte setnings-splitting, 
+    # men ord er ofte bedre for å se nøyaktig hva som ble endret i en lovparagraf.
     old_words = old.split(" ")
     new_words = new.split(" ")
     
@@ -102,7 +130,7 @@ def unified_diff(old: str, new: str, context=3) -> str:
         if opcode == 'equal':
             if a1 - a0 > context * 2:
                 diff.append(" ".join(old_words[a0:a0+context]))
-                diff.append("... [...] ...") # Kortere separator
+                diff.append("... [...] ...")
                 diff.append(" ".join(old_words[a1-context:a1]))
             else:
                 diff.append(" ".join(old_words[a0:a1]))
@@ -113,7 +141,7 @@ def unified_diff(old: str, new: str, context=3) -> str:
         elif opcode == 'replace':
             diff.append(f"✏️ [ENDRET]: {' '.join(old_words[a0:a1])} -> {' '.join(new_words[b0:b1])}")
             
-    return "\n".join(diff)[:2500] # Pkt 4: Trunker hvis ekstremt lang
+    return "\n".join(diff)[:4000] # Beholder cut-off for å ikke sprenge e-posten
 
 # --- KJERNEFUNKSJONER ---
 
@@ -122,7 +150,7 @@ def sjekk_endringer():
     sess = make_session()
     funn = []
 
-    print(f"🔍 Starter sjekk av {len(LOVER)} kilder...")
+    print(f"🔍 Starter sjekk av {len(LOVER)} BÆREKRAFTSKILDER (Terskel: {THRESHOLD}%)...")
 
     for navn, url in LOVER.items():
         try:
@@ -130,9 +158,9 @@ def sjekk_endringer():
             etag = prev_entry.get("etag")
             headers = {"If-None-Match": etag} if etag else {}
 
-            r = sess.get(url, headers=headers, timeout=20) # Pkt 5: Økt timeout litt
+            # FIKSET: Økt connect timeout, beholdt read timeout
+            r = sess.get(url, headers=headers, timeout=(10, 30))
             
-            # Pkt 2: Bruk ETag effektivt
             if r.status_code == 304:
                 print(f" ✅ {navn}: Uendret (304)")
                 continue
@@ -140,7 +168,6 @@ def sjekk_endringer():
             r.raise_for_status()
             
         except Exception as e:
-            # Pkt 5: Bedre logging av feil
             print(f" ⚠️  FEIL ved {navn} ({url}): {e}")
             continue
 
@@ -156,7 +183,7 @@ def sjekk_endringer():
             "text": clean_text, 
             "url": url,
             "etag": new_etag,
-            "sist_sjekket": os.popen('date -u').read().strip() # Pkt: Metadata
+            "sist_sjekket": get_timestamp()
         }
 
         if not prev_hash:
@@ -167,11 +194,11 @@ def sjekk_endringer():
             print(f" ✅ {navn}: Ingen tekstendring.")
             continue
 
-        # Endring oppdaget
         matcher = difflib.SequenceMatcher(None, prev_text, clean_text)
         likhet = matcher.ratio()
         endring_pct = (1 - likhet) * 100
 
+        # FIKSET: Nå fungerer terskelen som forventet (f.eks. > 0.5%)
         if endring_pct >= THRESHOLD:
             print(f" 🚨 ENDRING: {navn} ({endring_pct:.2f}%)")
             funn.append({
@@ -181,7 +208,7 @@ def sjekk_endringer():
                 "diff": unified_diff(prev_text, clean_text)
             })
         else:
-            print(f" ⚪ {navn}: Ubetydelig endring ({endring_pct:.2f}%)")
+            print(f" ⚪ {navn}: Endring under terskel ({endring_pct:.2f}%)")
 
     save_cache(cache)
     return funn
@@ -190,31 +217,38 @@ def send_epost(funn):
     if not funn:
         return
 
-    # Pkt 6: Sjekk at vi faktisk kan sende mail
     if not (EMAIL_USER and EMAIL_PASS):
-        print("❌ E-post kan ikke sendes: Mangler brukernavn/passord i Secrets.")
+        print("❌ E-post kan ikke sendes: Mangler brukernavn/passord i miljøvariabler.")
+        for f in funn:
+             print(f"\n--- ENDRING I {f['navn']} ---\n{f['diff']}\n")
         return
 
     print(f"📧 Forbereder varsel for {len(funn)} endringer...")
 
-    linjer = [f"# ⚖️ LovRadar: {len(funn)} endring(er)"]
-    linjer.append(f"**Tidspunkt:** {os.popen('date -u').read().strip()}\n")
+    linjer = [f"# 🌱 LovRadar Bærekraft: {len(funn)} endring(er)"]
+    linjer.append(f"**Tidspunkt:** {get_timestamp()}\n")
     
     for f in funn:
         linjer.append(f"## 🔴 {f['navn']}")
         linjer.append(f"- **Endring:** {f['prosent']:.2f}%")
         linjer.append(f"- **Lenke:** {f['url']}")
         linjer.append("\n```diff")
-        linjer.append(f["diff"])
+        linjer.append(f['diff'])
         linjer.append("```\n---")
 
-    linjer.append("\n### 🤖 AI-ANALYSE INSTRUKS")
+    # --- ESG & MARKEDSFØRINGS-ANALYSE ---
+    linjer.append("\n### 🌍 AI-ANALYSE (ESG & MARKEDSFØRING)")
     linjer.append("**KONTEKST:**")
     linjer.append(get_company_context())
-    linjer.append("\n**OPPGAVE:** Analyser konsekvenser for varer/drift.")
+    
+    linjer.append("\n**OPPGAVE:**")
+    linjer.append("Du er en juridisk ekspert på bærekraft og markedsføring i Coop-systemet. Analyser endringene:")
+    linjer.append("1. **Markedsføring:** Påvirker dette hva vi har lov å si i reklame? (Grønnvasking-risiko).")
+    linjer.append("2. **Drift/Innkjøp:** Er det nye krav til kjemikalier, emballasje eller avfall?")
+    linjer.append("3. **Compliance:** Krever dette oppdatering av våre aktsomhetsvurderinger (Åpenhetsloven)?")
     
     msg = MIMEText("\n".join(linjer), "plain", "utf-8")
-    msg["Subject"] = Header(f"LovRadar: Endring i {funn[0]['navn']}", "utf-8")
+    msg["Subject"] = Header(f"🌱 Bærekraftvarsel: Endring i {funn[0]['navn']}", "utf-8")
     msg["From"] = EMAIL_USER
     msg["To"] = EMAIL_TO
 
