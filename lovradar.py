@@ -34,8 +34,8 @@ LOVER = {
     # === 3. FREMTID & STRATEGI (EØS/EU - Varsler "Tsunamien") ===
     # Her ser du EU-regler (som ESPR) lenge før de blir norsk lov:
     "Regjeringen: EØS-notater (Klima/Miljø)": "https://www.regjeringen.no/no/tema/europapolitikk/eos-notatbasen/id686653/?topic=klima-og-miljo",
-    # Her ser du hva norske myndigheter planlegger:
-    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoyringer/"
+    # Her ser du hva norske myndigheter planlegger (FIKSET LENKE HER):
+    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoeringer/"
 }
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
@@ -43,8 +43,9 @@ CACHE_FILE = "lovradar_baerekraft_cache.json"
 # Terskel: 0.5% (Fanger opp små, men viktige juridiske justeringer)
 THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
 
-# HUSK: Bytt ut 'DITT_BRUKERNAVN'
-USER_AGENT = "LovRadar-Complete/8.0 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
+# User-Agent identifiserer roboten din overfor nettsidene
+# Bytt gjerne ut DITT_BRUKERNAVN med din Github-bruker, men det fungerer også slik.
+USER_AGENT = "LovRadar-Complete/8.1 (Internal Compliance Tool; +https://github.com/Majac999)" 
 
 # E-post innstillinger
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
