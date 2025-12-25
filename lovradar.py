@@ -35,14 +35,15 @@ LOVER = {
     # Her ser du EU-regler (som ESPR) lenge før de blir norsk lov:
     "Regjeringen: EØS-notater (Klima/Miljø)": "https://www.regjeringen.no/no/tema/europapolitikk/eos-notatbasen/id686653/?topic=klima-og-miljo",
     # Her ser du hva norske myndigheter planlegger:
-   "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoeringer/"
+    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoeringer/"
+}
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
 
 # Terskel: 0.5% (Fanger opp små, men viktige juridiske justeringer)
 THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
 
-# HUSK: Bytt ut 'DITT_BRUKERNAVN'
+# User-Agent identifiserer roboten din overfor nettsidene
 USER_AGENT = "LovRadar-Complete/8.0 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
 
 # E-post innstillinger
@@ -100,7 +101,7 @@ def clean_html(html_content: str) -> str:
         # 4. Hent tekst
         text = soup.get_text(separator=" ")
         
-        # 5. Fjern HTML-kommentarer
+        # 5. Fjern HTML-kommentarer (VIKTIG RETTELSE HER)
         text = re.sub(r"", "", text, flags=re.DOTALL)
         
         # 6. Normaliser whitespace
