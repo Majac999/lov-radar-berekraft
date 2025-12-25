@@ -31,11 +31,12 @@ LOVER = {
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
 
-# FIKSET TERSKEL: Standard satt til 0.5% for å fange små endringer.
+# FIKSET TERSKEL: Standard satt til 0.5% for å fange små endringer, men unngå støy.
+# Hvis en lov er veldig lang, kan 20% (som Codex foreslo) skjule viktige småendringer.
 THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
 
 # HUSK: Bytt ut 'DITT_BRUKERNAVN'
-USER_AGENT = "LovRadar-Sustainability/7.3 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
+USER_AGENT = "LovRadar-Sustainability/7.2 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
 
 # E-post innstillinger
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -72,7 +73,7 @@ def clean_html(html_content: str) -> str:
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         
-        # 1. Prøv å finne hovedinnholdet
+        # 1. Prøv å finne hovedinnholdet (snevrer inn søket)
         main_content = soup.find("main") or soup.find(id="content") or soup.find(id="main") or soup.find("article")
         if main_content:
             soup = main_content
@@ -81,21 +82,23 @@ def clean_html(html_content: str) -> str:
         for element in soup(["script", "style", "nav", "footer", "header", "noscript", "iframe", "meta", "button", "aside", "form"]):
             element.decompose() 
             
-        # 3. Aggressiv fjerning av UI-elementer
+        # 3. FIKSET: Aggressiv fjerning av UI-elementer (Print, Share, TOC, Nyhetsbrev)
+        # Dette bruker regex for å finne klasser som inneholder støy-ord
         noisy_classes = re.compile(r'(share|social|print|tool|toc|breadcrumb|menu|newsletter|cookie|popup|banner|related)', re.IGNORECASE)
         for div in soup.find_all(class_=noisy_classes):
             div.decompose()
         
+        # Fjerner også elementer med id som matcher støyen
         for div in soup.find_all(id=noisy_classes):
             div.decompose()
 
         # 4. Hent tekst
         text = soup.get_text(separator=" ")
         
-        # 5. FIKSET: Regex for HTML-kommentarer (Var tom i din versjon)
+        # 5. FIKSET: Regex for HTML-kommentarer
         text = re.sub(r"", "", text, flags=re.DOTALL)
         
-        # 6. Normaliser whitespace
+        # 6. Normaliser whitespace (fjerner tabs og doble mellomrom)
         text = re.sub(r"\s+", " ", text).strip()
         
         return text
@@ -115,6 +118,8 @@ def save_cache(cache: dict):
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 def unified_diff(old: str, new: str, context=3) -> str:
+    # Bruker ord-splitting for diff. Vurderte setnings-splitting, 
+    # men ord er ofte bedre for å se nøyaktig hva som ble endret i en lovparagraf.
     old_words = old.split(" ")
     new_words = new.split(" ")
     
@@ -136,7 +141,7 @@ def unified_diff(old: str, new: str, context=3) -> str:
         elif opcode == 'replace':
             diff.append(f"✏️ [ENDRET]: {' '.join(old_words[a0:a1])} -> {' '.join(new_words[b0:b1])}")
             
-    return "\n".join(diff)[:4000]
+    return "\n".join(diff)[:4000] # Beholder cut-off for å ikke sprenge e-posten
 
 # --- KJERNEFUNKSJONER ---
 
@@ -153,6 +158,7 @@ def sjekk_endringer():
             etag = prev_entry.get("etag")
             headers = {"If-None-Match": etag} if etag else {}
 
+            # FIKSET: Økt connect timeout, beholdt read timeout
             r = sess.get(url, headers=headers, timeout=(10, 30))
             
             if r.status_code == 304:
@@ -192,6 +198,7 @@ def sjekk_endringer():
         likhet = matcher.ratio()
         endring_pct = (1 - likhet) * 100
 
+        # FIKSET: Nå fungerer terskelen som forventet (f.eks. > 0.5%)
         if endring_pct >= THRESHOLD:
             print(f" 🚨 ENDRING: {navn} ({endring_pct:.2f}%)")
             funn.append({
