@@ -22,15 +22,20 @@ LOVER = {
     "TEK17 (Kap 9 Ytre miljø)": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
 
     # === 2. SOFT LAW (Tolkning & Markedsføring) ===
+    # Denne avgjør om Coop får bot for reklamen sin:
     "Forbrukertilsynet: Bærekraftveileder": "https://www.forbrukertilsynet.no/lov-og-rett/veiledninger-og-retningslinjer/forbrukertilsynets-veiledning-om-bruk-av-baerekraftpastander-markedsforing",
+    # Her ser du hvilke stoffer som snart blir forbudt (REACH):
     "Miljødirektoratet: Kjemikalienyheter": "https://www.miljodirektoratet.no/ansvarsomrader/kjemikalier/reach/",
+    # Viktig for proff-salg til kommuner:
     "DFØ: Miljøkrav i offentlige innkjøp": "https://www.anskaffelser.no/berekraftige-anskaffingar/klima-og-miljo-i-offentlige-anskaffelser",
+    # Bransjestandarden (Svanemerket strammer ofte inn først):
     "Svanemerket: Nye krav (Høringer)": "https://svanemerket.no/horinger/",
 
-    # === 3. FREMTID & STRATEGI (EØS/EU) ===
+    # === 3. FREMTID & STRATEGI (EØS/EU - Varsler "Tsunamien") ===
+    # Her ser du EU-regler (som ESPR) lenge før de blir norsk lov:
     "Regjeringen: EØS-notater (Klima/Miljø)": "https://www.regjeringen.no/no/tema/europapolitikk/eos-notatbasen/id686653/?topic=klima-og-miljo",
-    # ✅ RETTET LENKE (hoeringer):
-    "Miljødirektoratet: Høringer og konsultasjoner": "https://www.miljodirektoratet.no/hoeringer/"
+    # Her ser du hva norske myndigheter planlegger:
+    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoyringer/"
 }
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
@@ -38,8 +43,8 @@ CACHE_FILE = "lovradar_baerekraft_cache.json"
 # Terskel: 0.5% (Fanger opp små, men viktige juridiske justeringer)
 THRESHOLD = float(os.environ.get("THRESHOLD", "0.5"))
 
-# User-Agent identifiserer roboten din overfor nettsidene
-USER_AGENT = "LovRadar-Complete/8.4 (Internal Compliance Tool; +https://github.com/Majac999)" 
+# HUSK: Bytt ut 'DITT_BRUKERNAVN'
+USER_AGENT = "LovRadar-Complete/8.0 (Internal Compliance Tool; +https://github.com/DITT_BRUKERNAVN)" 
 
 # E-post innstillinger
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
