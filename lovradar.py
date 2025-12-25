@@ -35,8 +35,7 @@ LOVER = {
     # Her ser du EU-regler (som ESPR) lenge før de blir norsk lov:
     "Regjeringen: EØS-notater (Klima/Miljø)": "https://www.regjeringen.no/no/tema/europapolitikk/eos-notatbasen/id686653/?topic=klima-og-miljo",
     # Her ser du hva norske myndigheter planlegger:
-    "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoyringer/"
-}
+   "Miljødirektoratet: Pågående høringer": "https://www.miljodirektoratet.no/hoeringer/"
 
 CACHE_FILE = "lovradar_baerekraft_cache.json"
 
