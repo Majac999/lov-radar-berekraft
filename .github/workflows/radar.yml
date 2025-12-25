@@ -1,22 +1,22 @@
-name: LovRadar Ukentlig Sjekk
+name: Kjøre LovRadar Bærekraft
 
 on:
   schedule:
-    - cron: '0 5 * * 1'  # Kjører kl 06:00 hver MANDAG (Norsk tid)
-  workflow_dispatch:     # Gjør at du kan starte den manuelt ved behov
+    # Kjører hver dag kl 06:00 UTC (ca 07:00 eller 08:00 norsk tid)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Gjør at du kan starte den manuelt via knapp også
 
 jobs:
   kjore-radar:
     runs-on: ubuntu-latest
+    
+    # Gir roboten lov til å lagre endringer (viktig!)
     permissions:
-      contents: write      # VIKTIG: Gir lov til å lagre cache tilbake til GitHub
+      contents: write
 
     steps:
-      - name: Hent koden
+      - name: Sjekk ut kode
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Henter full historikk for å unngå feil
-          clean: true    # Sikrer at vi alltid starter med blanke ark
 
       - name: Sett opp Python
         uses: actions/setup-python@v5
@@ -24,25 +24,34 @@ jobs:
           python-version: '3.10'
 
       - name: Installer biblioteker
-        # ENDRING 1: Vi la til 'beautifulsoup4' her
         run: pip install requests beautifulsoup4
 
-      - name: Kjør LovRadar-scriptet
+      - name: Kjør LovRadar
         env:
+          # Henter hemmeligheter fra Settings -> Secrets and variables
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          # ENDRING 2: Vi la til mottaker og firmaprofilen her
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-          COMPANY_CONTEXT: ${{ secrets.COMPANY_CONTEXT }}
+          # Setter terskel for varsling (0.5%)
+          THRESHOLD: "0.5"
         run: python lovradar.py
 
-      - name: Lagre cache tilbake til GitHub
+      - name: Lagre oppdatert cache
         run: |
           git config --global user.name 'LovRadar Bot'
           git config --global user.email 'bot@noreply.github.com'
           
-          # ENDRING 3: Endret fra 'tekst_cache/' til filnavnet som brukes i scriptet
-          git add lovradar_cache.json
+          # Hent nyeste status fra GitHub
+          git fetch origin main
           
-          # Sjekker om det er endringer før vi committer for å unngå feilmeldinger
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Oppdaterte lov-cache [skip ci]" && git pull --rebase origin main && git push)
+          # "Soft reset" sørger for at vi beholder endringene våre (cachen),
+          # men later som om vi startet fra den aller nyeste versjonen på serveren.
+          # Dette eliminerer merge conflicts.
+          git reset --soft origin/main
+          
+          # Legg til alle JSON-filer (dekker både gammelt og nytt navn på cache)
+          git add *.json
+          
+          # Commit og push kun hvis det er endringer
+          git commit -m "Oppdaterte lov-cache [skip ci]" || exit 0
+          git push origin main
