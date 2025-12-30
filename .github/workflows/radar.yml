@@ -1,4 +1,4 @@
-name: LovRadar Compliance Monitor v13.1
+name: LovRadar Ultimate v13.0
 
 on:
   schedule:
@@ -20,21 +20,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 3. Installer verktøy
+      - name: 3. Installer verktøy (v13 krav)
         run: |
           pip install aiohttp feedparser beautifulsoup4 pypdf lxml requests
 
-      - name: 4. Kjør LovRadar
+      - name: 4. Kjør LovRadar v13.0
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: python lovradar.py
 
-      - name: 5. Lagre hukommelse
+      - name: 5. Lagre database og hukommelse
         run: |
           git config --global user.name "LovRadar Bot"
           git config --global user.email "bot@lovradar.no"
-          git add lovradar_cache.json || true
-          git commit -m "Oppdaterte regulatorisk cache [skip ci]" || exit 0
+          # Vi lagrer både databasen og cache-filen
+          git add lovradar_v13.db lovradar_v13_cache.json || true
+          git commit -m "Oppdaterte regulatorisk database [skip ci]" || exit 0
           git push
