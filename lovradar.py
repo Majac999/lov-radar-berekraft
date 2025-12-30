@@ -14,6 +14,7 @@ RSS_FEEDS = {
 
 # DYBDE: Overvåker endringer i eksisterende lovtekst
 DEEP_LAWS = {
+    "NRK Nyheter (Test)": "https://www.nrk.no/nyheter/"
     "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
     "Åpenhetsloven": "https://lovdata.no/dokument/NL/lov/2021-06-18-99",
     "Markedsføringsloven": "https://lovdata.no/dokument/NL/lov/2009-01-09-2",
