@@ -14,19 +14,20 @@ RSS_FEEDS = {
 
 # DYBDE: Overvåker endringer i eksisterende lovtekst
 DEEP_LAWS = {
-    "NRK Nyheter (Test)": "https://www.nrk.no/nyheter/"
     "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
     "Åpenhetsloven": "https://lovdata.no/dokument/NL/lov/2021-06-18-99",
     "Markedsføringsloven": "https://lovdata.no/dokument/NL/lov/2009-01-09-2",
-    "TEK17 Kap 9 (Miljø)": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
-    "Byggevareforskriften (DOK)": "https://lovdata.no/dokument/SF/forskrift/2014-12-17-1714",
+    "TEK17 Kap 9": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
+    "Byggevareforskriften": "https://lovdata.no/dokument/SF/forskrift/2014-12-17-1714",
     "Arbeidsmiljøloven": "https://lovdata.no/dokument/NL/lov/2005-06-17-62"
 }
 
-KEYWORDS = ["bærekraft", "emballasje", "Stortinget", "Norge", "2025"]
+# Strategiske nøkkelord for Obs BYGG
+KEYWORDS = ["bærekraft", "emballasje", "produktpass", "omsetning", "bygg", "miljø", "Stortinget"]
+
 CACHE_FILE = "lovradar_cache.json"
 THRESHOLD = 0.5
-USER_AGENT = "Mozilla/5.0 (compatible; LovRadar/12.0; Strategic Monitoring)"
+USER_AGENT = "Mozilla/5.0 (compatible; LovRadar/12.1)"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,19 +40,16 @@ async def fetch_url(session, url):
             if response.status == 200:
                 return await response.text()
     except Exception as e:
-        logger.error(f"Feil ved henting av {url}: {e}")
+        logger.error(f"Feil ved henting: {e}")
     return None
 
-def extract_text(html, url):
+def extract_text(html):
     if not html: return ""
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
         tag.decompose()
-    
-    # Prøver å finne selve dokumentinnholdet
     content = soup.find("div", class_="dokumentBeholder") or soup.find("article") or soup.find("main") or soup.body
-    text = content.get_text(separator=" ")
-    return re.sub(r'\s+', ' ', text).strip()
+    return re.sub(r'\s+', ' ', content.get_text()).strip()
 
 # --- 3. ANALYSE-MOTOR ---
 
@@ -65,7 +63,7 @@ async def sjekk_alt():
     findings = {"rss": [], "deep": []}
     
     async with aiohttp.ClientSession(headers={"User-Agent": USER_AGENT}) as session:
-        # Del A: RSS-skanning (Bredde)
+        # Del A: RSS (Bredde)
         tasks_rss = [fetch_url(session, url) for url in RSS_FEEDS.values()]
         rss_results = await asyncio.gather(*tasks_rss)
         
@@ -82,17 +80,16 @@ async def sjekk_alt():
         
         for (navn, url), html in zip(DEEP_LAWS.items(), deep_results):
             if html:
-                text = extract_text(html, url)
+                text = extract_text(html)
                 new_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-                
                 prev = cache.get(navn, {})
+                
                 if prev and new_hash != prev.get("hash"):
                     similarity = difflib.SequenceMatcher(None, prev.get("text", ""), text).ratio()
                     change = round((1 - similarity) * 100, 2)
                     if change >= THRESHOLD:
                         findings["deep"].append({"navn": navn, "prosent": change, "url": url})
                 
-                # Oppdaterer hukommelsen (begrenser tekst til 5000 tegn for å spare plass)
                 cache[navn] = {"hash": new_hash, "text": text[:5000]}
 
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -102,34 +99,26 @@ async def sjekk_alt():
 # --- 4. RAPPORTERING ---
 
 def send_rapport(findings):
-    user = os.environ.get("EMAIL_USER")
-    pw = os.environ.get("EMAIL_PASS")
-    to = os.environ.get("EMAIL_RECIPIENT")
-
+    user, pw, to = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS"), os.environ.get("EMAIL_RECIPIENT")
     if not (findings["rss"] or findings["deep"]) or not all([user, pw, to]):
-        logger.info("Ingen endringer funnet eller manglende e-postkonfigurasjon.")
+        logger.info("Ingen nye endringer detektert.")
         return
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"🛡️ LovRadar v12: Strategisk Rapport {datetime.now().strftime('%d.%m.%Y')}"
+    msg["Subject"] = f"🛡️ LovRadar v12.1: Strategisk Rapport {datetime.now().strftime('%d.%m.%Y')}"
     msg["From"], msg["To"] = user, to
     
     html = f"""
-    <html><body style="font-family: Arial, sans-serif; color: #333;">
+    <html><body style="font-family: Arial, sans-serif;">
         <div style="background: #1a5f7a; color: white; padding: 20px; border-radius: 8px;">
-            <h2 style="margin:0;">Regulatorisk Radar v12</h2>
-            <p>Overvåkning for byggevarehandel og bærekraft</p>
+            <h2 style="margin:0;">LovRadar: Bærekraft & Compliance</h2>
+            <p>Automatisk overvåkning for Obs BYGG</p>
         </div>
-        
-        <h3 style="color: #d9534f;">🔴 Endringer i eksisterende lovtekst:</h3>
-        {"".join([f"<div style='border-left:4px solid #d9534f; padding-left:10px;'><p><b>{d['navn']}</b>: {d['prosent']}% endring detektert.<br><a href='{d['url']}'>Gå til kilde</a></p></div>" for d in findings['deep']]) or "<p>Ingen endringer i lovtekst i dag.</p>"}
-        
-        <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-        
-        <h3 style="color: #5bc0de;">📡 Nye treff i nyhetsstrømmer (Keywords):</h3>
-        {"".join([f"<p>• Tema <b>'{r['tema']}'</b> identifisert hos <i>{r['kilde']}</i>.<br><a href='{r['url']}'>Åpne nyhetsstrøm</a></p>" for r in findings['rss']]) or "<p>Ingen nye nøkkelord funnet i dag.</p>"}
-        
-        <p style="font-size: 11px; color: #999; margin-top:30px;">Anonymisert overvåkning generert for Obs BYGG / Coop-kontekst.</p>
+        <h3>🔴 Endringer i eksisterende lovtekst:</h3>
+        {"".join([f"<p><b>{d['navn']}</b>: {d['prosent']}% endring. <a href='{d['url']}'>Se kilde</a></p>" for d in findings['deep']]) or "<p>Ingen endringer.</p>"}
+        <hr>
+        <h3>📡 Nye treff i nyhetsstrømmer:</h3>
+        {"".join([f"<p>• Tema <b>'{r['tema']}'</b> funnet hos <i>{r['kilde']}</i>. <a href='{r['url']}'>Åpne</a></p>" for r in findings['rss']]) or "<p>Ingen treff.</p>"}
     </body></html>
     """
     msg.attach(MIMEText(html, "html", "utf-8"))
@@ -137,9 +126,8 @@ def send_rapport(findings):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
             s.login(user, pw)
             s.send_message(msg)
-        logger.info("📧 Strategisk rapport sendt!")
-    except Exception as e:
-        logger.error(f"Kunne ikke sende e-post: {e}")
+        logger.info("📧 Rapport sendt!")
+    except Exception as e: logger.error(f"E-postfeil: {e}")
 
 if __name__ == "__main__":
     resultater = asyncio.run(sjekk_alt())
