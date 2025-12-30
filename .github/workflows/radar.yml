@@ -1,8 +1,8 @@
-name: LovRadar Bærekraft v10.1
+name: LovRadar Bærekraft v12.0
 
 on:
   schedule:
-    # Kjører hver mandag kl. 08:00
+    # Kjører hver mandag kl. 08:00 (07:00 UTC)
     - cron: '0 7 * * 1'
   workflow_dispatch: # Lar deg starte den manuelt fra mobilen
 
@@ -10,7 +10,7 @@ jobs:
   kjor_radar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Gir roboten lov til å lagre hukommelsen sin
+      contents: write # Viktig for å lagre hukommelsen i JSON-filen
 
     steps:
       - name: 1. Hent koden
@@ -21,16 +21,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: 3. Installer verktøy
+      - name: 3. Installer strategiske verktøy
         run: |
-          pip install requests beautifulsoup4 lxml feedparser pypdf
+          python -m pip install --upgrade pip
+          # Her er fiksen: vi har lagt til aiohttp
+          pip install requests beautifulsoup4 lxml feedparser pypdf aiohttp
 
       - name: 4. Kjør LovRadar Analyse
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-        run: python lovradar.py # HER: Navnet er nå synkronisert med din fil
+        run: python lovradar.py
 
       - name: 5. Lagre radar-hukommelse
         run: |
