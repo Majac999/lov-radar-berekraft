@@ -22,7 +22,7 @@ DEEP_LAWS = {
     "Arbeidsmiljøloven": "https://lovdata.no/dokument/NL/lov/2005-06-17-62"
 }
 
-KEYWORDS = ["bærekraft", "emballasje", "produktpass", "omsetning", "bygg", "miljø"]
+KEYWORDS = ["bærekraft", "emballasje", "produktpass", "omsetning", "bygg", "miljø", "trer i kraft", "1. januar", "statsråd"]
 CACHE_FILE = "lovradar_cache.json"
 THRESHOLD = 0.5
 USER_AGENT = "Mozilla/5.0 (compatible; LovRadar/12.0; Strategic Monitoring)"
