@@ -26,11 +26,12 @@ DEEP_LAWS = {
 KEYWORDS = ["bærekraft", "emballasje", "produktpass", "sirkulær", "dokumentasjon", "grønnvasking", "miljøkrav"]
 CACHE_FILE = "lovradar_cache.json"
 THRESHOLD = 0.5
-USER_AGENT = "LovRadar/13.1 (Strategic Compliance Monitoring; Obs BYGG)"
+USER_AGENT = "LovRadar/13.2 (Compliance Monitoring; Obs BYGG)"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+# --- 2. MOTOR ---
 async def fetch_url(session, url):
     try:
         async with session.get(url, timeout=30) as response:
@@ -52,7 +53,7 @@ async def sjekk_alt():
 
     findings = {"rss": [], "deep": []}
     async with aiohttp.ClientSession(headers={"User-Agent": USER_AGENT}) as session:
-        # RSS
+        # RSS skanning
         tasks = [fetch_url(session, url) for url in RSS_FEEDS.values()]
         results = await asyncio.gather(*tasks)
         for (navn, url), html in zip(RSS_FEEDS.items(), results):
@@ -64,7 +65,7 @@ async def sjekk_alt():
                         if kw in text:
                             findings["rss"].append({"kilde": navn, "tema": kw, "tittel": entry.title, "url": entry.link})
                             break
-        # Deep Scan
+        # Lovendring skanning
         tasks_deep = [fetch_url(session, url) for url in DEEP_LAWS.values()]
         results_deep = await asyncio.gather(*tasks_deep)
         for (navn, url), html in zip(DEEP_LAWS.items(), results_deep):
@@ -80,26 +81,46 @@ async def sjekk_alt():
     with open(CACHE_FILE, 'w', encoding='utf-8') as f: json.dump(cache, f, indent=2)
     return findings
 
+# --- 3. ROBUST E-POST UTSENDELSE ---
 def send_rapport(f):
-    user, pw, to = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS"), os.environ.get("EMAIL_RECIPIENT")
-    if not (f["rss"] or f["deep"]) or not all([user, pw, to]): return
+    # Henter og renser variabler (viktig!)
+    user = os.environ.get("EMAIL_USER", "").strip()
+    pw = os.environ.get("EMAIL_PASS", "").strip()
+    to = os.environ.get("EMAIL_RECIPIENT", "").strip()
+    
+    # Hvis mottaker mangler, prøver vi å sende til oss selv (sender)
+    if not to: to = user
+    
+    if not (f["rss"] or f["deep"]) or not all([user, pw, to]):
+        logger.info("Ingen endringer å sende eller mangler pålogging.")
+        return
     
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"🛡️ LovRadar v13.1: Strategisk Rapport {datetime.now().strftime('%d.%m')}"
+    msg["Subject"] = f"🛡️ LovRadar v13.2: Strategisk Rapport {datetime.now().strftime('%d.%m')}"
+    msg["From"] = user
+    msg["To"] = to
+    
     html = f"""<html><body style="font-family: Arial, sans-serif;">
         <div style="background: #1a5f7a; color: white; padding: 20px; border-radius: 8px;">
-            <h2 style="margin:0;">LovRadar v13.1: Bærekraft & Compliance</h2>
-            <p>Strategisk overvåkning for Obs BYGG</p>
+            <h2 style="margin:0;">LovRadar v13.2: Bærekraft & Compliance</h2>
+            <p>Strategisk overvåkning for Obs BYGG / Coop</p>
         </div>
         <h3 style="color: #d9534f;">🔴 Lovendringer:</h3>
-        {"".join([f"<p><b>{d['navn']}</b>: {d['prosent']}% endring. <a href='{d['url']}'>Lovdata</a></p>" for d in f['deep']]) or "<p>Ingen endringer.</p>"}
+        {"".join([f"<p><b>{d['navn']}</b>: {d['prosent']}% endring. <a href='{d['url']}'>Se kilde</a></p>" for d in f['deep']]) or "<p>Ingen endringer detektert.</p>"}
         <h3 style="color: #5bc0de;">📡 Nyheter & Høringer:</h3>
-        {"".join([f"<p>• <b>{r['tittel']}</b> ({r['tema']}) hos <i>{r['kilde']}</i>. <a href='{r['url']}'>Link</a></p>" for r in f['rss']]) or "<p>Ingen treff.</p>"}
+        {"".join([f"<p>• <b>{r['tittel']}</b> ({r['tema']}) hos <i>{r['kilde']}</i>. <a href='{r['url']}'>Link</a></p>" for r in f['rss']]) or "<p>Ingen treff i dag.</p>"}
     </body></html>"""
+    
     msg.attach(MIMEText(html, "html", "utf-8"))
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
-        s.login(user, pw)
-        s.send_message(msg)
+    
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+            s.login(user, pw)
+            # Vi bruker sendmail for økt stabilitet overfor mottakerliste
+            s.sendmail(user, [to], msg.as_string())
+        logger.info(f"📧 Strategisk rapport sendt til {to}!")
+    except Exception as e:
+        logger.error(f"❌ Kunne ikke sende e-post: {e}")
 
 if __name__ == "__main__":
     res = asyncio.run(sjekk_alt())
