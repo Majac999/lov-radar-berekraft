@@ -5,29 +5,35 @@ from email.mime.multipart import MIMEMultipart
 from bs4 import BeautifulSoup
 
 # --- 1. STRATEGISK KONFIGURASJON ---
-# BREDDE: Fanger opp nye forslag og høringer
+
+# BREDDE: Overvåker nyheter og kommende krav (Høringer og trender)
 RSS_FEEDS = {
-    "Stortinget: Nye Saker": "https://www.stortinget.no/no/Saker-og-publikasjoner/Saker/RSS/",
-    "Regjeringen: Høringer": "https://www.regjeringen.no/no/id94/?type=rss",
-    "Miljødirektoratet": "https://www.miljodirektoratet.no/rss/nyheter/"
+    "Regjeringen: Klima & Miljø": "https://www.regjeringen.no/no/id94/?type=rss",
+    "Miljødirektoratet: Nyheter": "https://www.miljodirektoratet.no/rss/nyheter/",
+    "Forbrukertilsynet: Markedsføring": "https://www.forbrukertilsynet.no/feed",
+    "DiBK: Nyheter om byggeregler": "https://dibk.no/rss"
 }
 
-# DYBDE: Overvåker endringer i eksisterende lovtekst
+# DYBDE: Overvåker endringer i selve lovteksten (Compliance)
 DEEP_LAWS = {
-    "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
     "Åpenhetsloven": "https://lovdata.no/dokument/NL/lov/2021-06-18-99",
+    "Produktkontrolloven": "https://lovdata.no/dokument/NL/lov/1976-06-11-79",
+    "Byggevareforskriften (DOK)": "https://lovdata.no/dokument/SF/forskrift/2014-12-17-1714",
     "Markedsføringsloven": "https://lovdata.no/dokument/NL/lov/2009-01-09-2",
-    "TEK17 Kap 9": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
-    "Byggevareforskriften": "https://lovdata.no/dokument/SF/forskrift/2014-12-17-1714",
+    "TEK17 Kap 9 (Ytre Miljø)": "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1",
+    "Avfallsforskriften (Emballasje)": "https://lovdata.no/dokument/SF/forskrift/2004-06-01-930",
     "Arbeidsmiljøloven": "https://lovdata.no/dokument/NL/lov/2005-06-17-62"
 }
 
-# Strategiske nøkkelord for Obs BYGG
-KEYWORDS = ["bærekraft", "emballasje", "produktpass", "omsetning", "bygg", "miljø", "Stortinget"]
+# Operative nøkkelord for Obs BYGG / Bærekraft
+KEYWORDS = [
+    "bærekraft", "emballasje", "produktpass", "sirkulær", 
+    "dokumentasjon", "klima", "grønnvasking", "miljøkrav", "byggevarer"
+]
 
 CACHE_FILE = "lovradar_cache.json"
 THRESHOLD = 0.5
-USER_AGENT = "Mozilla/5.0 (compatible; LovRadar/12.1)"
+USER_AGENT = "Mozilla/5.0 (compatible; LovRadar/12.2; Strategic Monitoring)"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -40,7 +46,7 @@ async def fetch_url(session, url):
             if response.status == 200:
                 return await response.text()
     except Exception as e:
-        logger.error(f"Feil ved henting: {e}")
+        logger.error(f"Feil ved henting av {url}: {e}")
     return None
 
 def extract_text(html):
@@ -48,8 +54,10 @@ def extract_text(html):
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
         tag.decompose()
+    # Prøver å isolere hovedinnholdet for å unngå falske varsler fra menyer
     content = soup.find("div", class_="dokumentBeholder") or soup.find("article") or soup.find("main") or soup.body
-    return re.sub(r'\s+', ' ', content.get_text()).strip()
+    text = content.get_text(separator=" ")
+    return re.sub(r'\s+', ' ', text).strip()
 
 # --- 3. ANALYSE-MOTOR ---
 
@@ -63,7 +71,7 @@ async def sjekk_alt():
     findings = {"rss": [], "deep": []}
     
     async with aiohttp.ClientSession(headers={"User-Agent": USER_AGENT}) as session:
-        # Del A: RSS (Bredde)
+        # Del A: RSS-skanning
         tasks_rss = [fetch_url(session, url) for url in RSS_FEEDS.values()]
         rss_results = await asyncio.gather(*tasks_rss)
         
@@ -74,7 +82,7 @@ async def sjekk_alt():
                         findings["rss"].append({"kilde": navn, "tema": kw, "url": url})
                         break
 
-        # Del B: Deep Scan (Dybde)
+        # Del B: Deep Scan (Lovendringer)
         tasks_deep = [fetch_url(session, url) for url in DEEP_LAWS.values()]
         deep_results = await asyncio.gather(*tasks_deep)
         
@@ -101,24 +109,30 @@ async def sjekk_alt():
 def send_rapport(findings):
     user, pw, to = os.environ.get("EMAIL_USER"), os.environ.get("EMAIL_PASS"), os.environ.get("EMAIL_RECIPIENT")
     if not (findings["rss"] or findings["deep"]) or not all([user, pw, to]):
-        logger.info("Ingen nye endringer detektert.")
+        logger.info("Ingen nye endringer å rapportere i dag.")
         return
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"🛡️ LovRadar v12.1: Strategisk Rapport {datetime.now().strftime('%d.%m.%Y')}"
+    msg["Subject"] = f"🛡️ LovRadar: Strategisk Rapport for Obs BYGG {datetime.now().strftime('%d.%m.%Y')}"
     msg["From"], msg["To"] = user, to
     
     html = f"""
-    <html><body style="font-family: Arial, sans-serif;">
-        <div style="background: #1a5f7a; color: white; padding: 20px; border-radius: 8px;">
-            <h2 style="margin:0;">LovRadar: Bærekraft & Compliance</h2>
-            <p>Automatisk overvåkning for Obs BYGG</p>
+    <html><body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <div style="background: #1a5f7a; color: white; padding: 25px; border-radius: 10px;">
+            <h2 style="margin:0;">Regulatorisk Radar v12.2</h2>
+            <p style="margin:5px 0 0;">Strategisk monitorering: Bærekraft & Compliance</p>
         </div>
-        <h3>🔴 Endringer i eksisterende lovtekst:</h3>
-        {"".join([f"<p><b>{d['navn']}</b>: {d['prosent']}% endring. <a href='{d['url']}'>Se kilde</a></p>" for d in findings['deep']]) or "<p>Ingen endringer.</p>"}
-        <hr>
-        <h3>📡 Nye treff i nyhetsstrømmer:</h3>
-        {"".join([f"<p>• Tema <b>'{r['tema']}'</b> funnet hos <i>{r['kilde']}</i>. <a href='{r['url']}'>Åpne</a></p>" for r in findings['rss']]) or "<p>Ingen treff.</p>"}
+        
+        <h3 style="color: #d9534f; border-bottom: 2px solid #eee; padding-bottom: 5px;">🔴 Lovendringer (Endring i paragraftekst)</h3>
+        {"".join([f"<p><b>{d['navn']}</b> har endret seg med {d['prosent']}%.<br><a href='{d['url']}'>Gå til Lovdata</a></p>" for d in findings['deep']]) or "<p>Ingen endringer i overvåkede lover i dag.</p>"}
+        
+        <h3 style="color: #5bc0de; border-bottom: 2px solid #eee; padding-bottom: 5px;">📡 Relevante Nyheter & Høringer</h3>
+        {"".join([f"<p>• Nøkkelordet <b>'{r['tema']}'</b> ble identifisert hos <i>{r['kilde']}</i>.<br><a href='{r['url']}'>Åpne kilden</a></p>" for r in findings['rss']]) or "<p>Ingen relevante nyhetstreff i dag.</p>"}
+        
+        <div style="margin-top: 40px; padding: 15px; background: #f9f9f9; font-size: 12px; color: #666; border-radius: 5px;">
+            Dette er en automatisert tjeneste utviklet for intern beslutningsstøtte i Obs BYGG / Coop. 
+            Kildene inkluderer Lovdata, Regjeringen og Miljødirektoratet.
+        </div>
     </body></html>
     """
     msg.attach(MIMEText(html, "html", "utf-8"))
@@ -126,7 +140,7 @@ def send_rapport(findings):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
             s.login(user, pw)
             s.send_message(msg)
-        logger.info("📧 Rapport sendt!")
+        logger.info("📧 Strategisk rapport sendt!")
     except Exception as e: logger.error(f"E-postfeil: {e}")
 
 if __name__ == "__main__":
