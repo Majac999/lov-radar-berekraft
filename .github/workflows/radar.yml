@@ -1,19 +1,18 @@
-name: LovRadar Compliance Monitor v13.0
+name: LovRadar Compliance Monitor v13.1
 
 on:
   schedule:
-    # Kjører hver mandag kl. 08:00 (07:00 UTC)
     - cron: '0 7 * * 1'
-  workflow_dispatch: # Lar deg starte den manuelt fra mobilen når som helst
+  workflow_dispatch:
 
 jobs:
   scan_and_monitor:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Gir roboten lov til å lagre database og cache
+      contents: write
 
     steps:
-      - name: 1. Hent koden fra GitHub
+      - name: 1. Hent koden
         uses: actions/checkout@v4
 
       - name: 2. Sett opp Python 3.11
@@ -21,25 +20,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 3. Installer strategiske verktøy (v13-pakken)
+      - name: 3. Installer verktøy
         run: |
-          python -m pip install --upgrade pip
-          # Her installeres alt Claude og du har lagt til for v13.0:
           pip install aiohttp feedparser beautifulsoup4 pypdf lxml requests
 
-      - name: 4. Kjør LovRadar v13.0 Analyse
+      - name: 4. Kjør LovRadar
         env:
-          # Disse må ligge under "Secrets" i GitHub-innstillingene dine
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: python lovradar.py
 
-      - name: 5. Lagre database og hukommelse (Persistence)
+      - name: 5. Lagre hukommelse
         run: |
           git config --global user.name "LovRadar Bot"
           git config --global user.email "bot@lovradar.no"
-          # Legger til både SQLite-databasen og JSON-cachen
-          git add lovradar_v13.db lovradar_v13_cache.json || true
-          git commit -m "Oppdaterte regulatorisk database og cache [skip ci]" || exit 0
+          git add lovradar_cache.json || true
+          git commit -m "Oppdaterte regulatorisk cache [skip ci]" || exit 0
           git push
