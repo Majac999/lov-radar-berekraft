@@ -1,43 +1,43 @@
-# Lov-radar Bærekraft & Handel 🌍⚖️
+LovRadar: Bærekraft & Handel 🌍⚖️
+​Strategisk monitorering av rammevilkår for byggevarebransjen.
 
-Et Open Source-verktøy for overvåking av regelverk knyttet til miljø, byggevarer og handel.
+​🔨 Om prosjektet
+​Dette er et internt utviklingsprosjekt (Proof of Concept) for å effektivisere overvåking av regulatoriske endringer. Målet er å identifisere endringer i et bredt spekter av offentlige lover og forskrifter, for å sikre compliance, trygge produkter og korrekte kundesvar i byggevarehandelen.
 
-## 🔨 Om prosjektet
-Dette er et privat utviklingsprosjekt for å forenkle hverdagen til ansatte i byggevarebransjen. Målet er å fange opp endringer i et bredt spekter av lover og forskrifter raskere, for å sikre compliance, trygge produkter og korrekte kundesvar.
+​Status: 🔵 Pilotfase (V13.0 - Analyse av offisielle rettskilder)
 
-Status: 🟢 Live (V5.6 - Med Lenker og Fikset Cache)
+​🎯 Hva monitorerer verktøyet?
+​Systemet utfører en regulatorisk skanning av offentlige rettskilder ukentlig (mandag morgen).
+​Verktøyet identifiserer vesentlige endringer i ordlyd (ignorerer formatering og metadata) innenfor tre strategiske hovedområder:
 
-## 🎯 Hva overvåker verktøyet?
-Systemet gjør automatiske oppslag mot Lovdata **hver mandag morgen kl. 06:00**.
+​1. Miljø, Kjemikalier & Bærekraft
+​REACH-forskriften (Kjemikalier og stoffer)
+​CLP-forskriften (Klassifisering og merking)
+​Avfallsforskriften (Håndtering og sortering)
+​Biocidforskriften (Impregnering og skadedyr)
+​Lov om bærekraftig finans (Taksonomi)
 
-Det sjekker om det har skjedd **vesentlige endringer** i lovteksten (ignorerer formatering, datoer og småfeil) innen fire hovedkategorier:
+​2. Bygg og Produktkrav
+​DOK-forskriften (Dokumentasjon av byggevarer)
+​TEK17 (Byggteknisk forskrift)
+​Produktkontrolloven
+​Tømmerforskriften (Sporbarhet og import)
+​FEU (Elektrisk utstyr)
+​Internkontrollforskriften (HMS og rutiner)
 
-### 1. Miljø, Kjemikalier & Bærekraft
-* REACH-forskriften (Kjemikalier og stoffer)
-* CLP-forskriften (Klassifisering og merking)
-* Avfallsforskriften (Håndtering og sortering)
-* Biocidforskriften (Impregnering og skadedyr)
-* Lov om bærekraftig finans (Taksonomi)
+​3. Handel og Forbruker
+​Forbrukerkjøpsloven (Reklamasjon og rettigheter)
+​Kjøpsloven (Næringskjøp)
+​Markedsføringsloven (Miljøpåstander/grønnvasking)
+​Åpenhetsloven (Leverandørkjeder og menneskerettigheter)
+​Regnskapsloven (Bærekraftsrapportering/CSRD)
 
-### 2. Bygg og Produktkrav
-* DOK-forskriften (Dokumentasjon av byggevarer)
-* TEK17 (Byggteknisk forskrift)
-* Produktkontrolloven
-* Tømmerforskriften (Sporbarhet og import)
-* FEU (Elektrisk utstyr)
-* Internkontrollforskriften (HMS og rutiner)
+​🤖 Metodikk for analyse
+​Når radaren utfører sin ukentlige skanning:
+​Identifisering: Systemet går gjennom oppdaterte versjoner av lovtekster fra offisielle kilder.
+​Tekstbehandling: Algoritmen isolerer det materielle innholdet ved å filtrere ut teknisk støy som HTML-kode og publiseringsdata.
 
-### 3. Handel og Forbruker
-* Forbrukerkjøpsloven (Reklamasjon og rettigheter)
-* Kjøpsloven (Næringskjøp)
-* Markedsføringsloven (Miljøpåstander/grønnvasking)
-* Åpenhetsloven (Leverandørkjeder og menneskerettigheter)
-* Regnskapsloven (Bærekraftsrapportering/CSRD)
+​Diff-analyse: Systemet sammenligner nåværende tekst mot tidligere lagret baselinje for å detektere endringer i rettslig innhold.
+​Rapportering: Ved relevante endringer genereres en strategisk rapport for videre juridisk vurdering.
 
----
-
-## 🤖 Hvordan det virker (V5.6)
-Når radaren kjører på mandager:
-1. **Laster ned** siste versjon av alle lover fra Lovdata.
-2. **Vasker teksten:** Fjerner "støy" som HTML-koder, datoer for sist endret, og formatering.
-3. **Sammenligner:** Sjekker den vaskede teksten
+​Juridisk merknad: Dette verktøyet benytter offentlig tilgjengelig informasjon som iht. åndsverkloven § 14 er unntatt opphavsrett. Pilotprosjektet er utviklet for intern evaluering, med sikte på fremtidig integrasjon mot offisielle kilde-API-er.
