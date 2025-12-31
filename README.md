@@ -40,4 +40,9 @@ LovRadar: Bærekraft & Handel 🌍⚖️
 ​Diff-analyse: Systemet sammenligner nåværende tekst mot tidligere lagret baselinje for å detektere endringer i rettslig innhold.
 ​Rapportering: Ved relevante endringer genereres en strategisk rapport for videre juridisk vurdering.
 
-​Juridisk merknad: Dette verktøyet benytter offentlig tilgjengelig informasjon som iht. åndsverkloven § 14 er unntatt opphavsrett. Pilotprosjektet er utviklet for intern evaluering, med sikte på fremtidig integrasjon mot offisielle kilde-API-er.
+​​⚖️ Rettslig Grunnlag og Lisens
+​Dette verktøyet er utviklet med fokus på åpenhet og etterlevelse av norsk lov:
+​Offentlige Rettskilder: Lovtekster og forskrifter er iht. åndsverkloven § 14 unntatt opphavsrett.
+
+​NLOD 2.0: Dataene hentes fra Lovdatas åpne datapakker (Public Data API) under Norsk lisens for åpne offentlige data (NLOD) 2.0.
+​Dialog med Lovdata: Prosjektet er utviklet etter veiledning fra seniorutviklere hos Stiftelsen Lovdata for å sikre korrekt bruk av deres infrastruktur.
