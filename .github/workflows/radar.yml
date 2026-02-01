@@ -5,6 +5,9 @@ on:
     - cron: '0 6 * * 1'  # Mandag kl 06:00 UTC (07:00 norsk tid)
   workflow_dispatch:  # Manuell kjøring
 
+permissions:
+  contents: write
+
 jobs:
   scan_and_monitor:
     runs-on: ubuntu-latest
@@ -35,3 +38,4 @@ jobs:
         git add lovradar_cache.json || true
         git diff --staged --quiet || git commit -m "Oppdatert cache $(date +'%Y-%m-%d')"
         git push || true
+
