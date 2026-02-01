@@ -1,4 +1,4 @@
-r#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 LovRadar v14.0 - Strategisk Regulatorisk Overvåkning
 Bærekraft & Handel for Byggevarebransjen
@@ -515,4 +515,4 @@ async def main():
 
 
 if __name__ == "__main__":
-   asyncio.run(main())
+    asyncio.run(main())
