@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+LovRadar v14.0 - Strategisk Regulatorisk Overvåkning
+Bærekraft & Handel for Byggevarebransjen
+"""
+
 import os
 import json
 import hashlib
@@ -69,9 +75,6 @@ RSS_KILDER = [
     RSSKilde("Regjeringen: Nyheter", "https://www.regjeringen.no/no/aktuelt/nyheter/id2006120/?type=rss", "alle"),
     RSSKilde("Regjeringen: Dokumenter", "https://www.regjeringen.no/no/dokument/id2000006/?type=rss", "alle"),
     RSSKilde("Forbrukertilsynet", "https://www.forbrukertilsynet.no/feed", "handel"),
-    RSSKilde("Lovdata: Lover", "https://lovdata.no/feed/lov", "alle"),
-    RSSKilde("Lovdata: Forskrifter", "https://lovdata.no/feed/sf", "alle"),
-    RSSKilde("Lovdata: Rundskriv", "https://lovdata.no/feed/rundskriv", "alle"),
 ]
 
 KEYWORDS = {
@@ -508,5 +511,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
