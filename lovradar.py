@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-LovRadar v14.0 - Strategisk Regulatorisk Overvåkning
-Bærekraft & Handel for Byggevarebransjen
-"""
-
 import os
 import json
 import hashlib
@@ -41,19 +35,19 @@ MILJO_LOVER = [
     LovKilde("REACH-forskriften", "https://lovdata.no/dokument/SF/forskrift/2008-05-30-516", "miljø", "Kjemikalier og stoffer"),
     LovKilde("CLP-forskriften", "https://lovdata.no/dokument/SF/forskrift/2012-06-16-622", "miljø", "Klassifisering og merking"),
     LovKilde("Avfallsforskriften", "https://lovdata.no/dokument/SF/forskrift/2004-06-01-930", "miljø", "Håndtering og sortering"),
-    LovKilde("Biocidforskriften", "https://lovdata.no/dokument/SF/forskrift/2014-04-10-548", "miljø", "Impregnering og skadedyr"),
+    LovKilde("Biocidforskriften", "https://lovdata.no/dokument/SF/forskrift/2017-04-18-480", "miljø", "Impregnering og skadedyr"),
     LovKilde("Lov om bærekraftig finans", "https://lovdata.no/dokument/NL/lov/2021-12-22-161", "miljø", "Taksonomi"),
     LovKilde("Produktforskriften", "https://lovdata.no/dokument/SF/forskrift/2004-06-01-922", "miljø", "Farlige stoffer i produkter"),
 ]
 
 # Strategisk Område 2: Bygg og Produktkrav
 BYGG_LOVER = [
-    LovKilde("DOK-forskriften", "https://lovdata.no/dokument/SF/forskrift/2014-12-17-1714", "bygg", "Dokumentasjon av byggevarer"),
+    LovKilde("DOK-forskriften", "https://lovdata.no/dokument/SF/forskrift/2013-12-17-1579", "bygg", "Dokumentasjon av byggevarer"),
     LovKilde("TEK17", "https://lovdata.no/dokument/SF/forskrift/2017-06-19-840", "bygg", "Byggteknisk forskrift"),
     LovKilde("TEK17 Kap 9 (Miljø)", "https://www.dibk.no/regelverk/byggteknisk-forskrift-tek17/9/9-1", "bygg", "Miljøkrav i bygg"),
     LovKilde("Produktkontrolloven", "https://lovdata.no/dokument/NL/lov/1976-06-11-79", "bygg", "Produktsikkerhet"),
     LovKilde("Tømmerforskriften", "https://lovdata.no/dokument/SF/forskrift/2015-04-24-406", "bygg", "Sporbarhet og import"),
-    LovKilde("FEU-forskriften", "https://lovdata.no/dokument/SF/forskrift/2011-01-14-36", "bygg", "Elektrisk utstyr"),
+    LovKilde("FEL-forskriften", "https://lovdata.no/dokument/SF/forskrift/1998-11-06-1060", "bygg", "Elektriske lavspenningsanlegg"),
     LovKilde("Internkontrollforskriften", "https://lovdata.no/dokument/SF/forskrift/1996-12-06-1127", "bygg", "HMS og rutiner"),
     LovKilde("Plan- og bygningsloven", "https://lovdata.no/dokument/NL/lov/2008-06-27-71", "bygg", "Hovedlov for bygging"),
 ]
@@ -72,14 +66,12 @@ HANDEL_LOVER = [
 ALLE_LOVER = MILJO_LOVER + BYGG_LOVER + HANDEL_LOVER
 
 RSS_KILDER = [
-    RSSKilde("Regjeringen: Klima & Miljø", "https://www.regjeringen.no/no/tema/klima-og-miljo/id1309/?type=rss", "miljø"),
-    RSSKilde("Regjeringen: Næringsliv", "https://www.regjeringen.no/no/tema/naringsliv/id945/?type=rss", "handel"),
-    RSSKilde("Regjeringen: Bygg & Bolig", "https://www.regjeringen.no/no/tema/plan-bygg-og-eiendom/id922/?type=rss", "bygg"),
-    RSSKilde("Miljødirektoratet", "https://www.miljodirektoratet.no/rss/nyheter/", "miljø"),
+    RSSKilde("Regjeringen: Nyheter", "https://www.regjeringen.no/no/aktuelt/nyheter/id2006120/?type=rss", "alle"),
+    RSSKilde("Regjeringen: Dokumenter", "https://www.regjeringen.no/no/dokument/id2000006/?type=rss", "alle"),
     RSSKilde("Forbrukertilsynet", "https://www.forbrukertilsynet.no/feed", "handel"),
-    RSSKilde("DiBK", "https://dibk.no/rss", "bygg"),
-    RSSKilde("Stortinget: Saker", "https://www.stortinget.no/no/Saker-og-publikasjoner/Saker/RSS/", "alle"),
-    RSSKilde("Arbeidstilsynet", "https://www.arbeidstilsynet.no/rss/nyheter/", "bygg"),
+    RSSKilde("Lovdata: Lover", "https://lovdata.no/feed/lov", "alle"),
+    RSSKilde("Lovdata: Forskrifter", "https://lovdata.no/feed/sf", "alle"),
+    RSSKilde("Lovdata: Rundskriv", "https://lovdata.no/feed/rundskriv", "alle"),
 ]
 
 KEYWORDS = {
@@ -516,3 +508,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
