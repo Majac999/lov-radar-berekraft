@@ -1,41 +1,48 @@
-name: LovRadar Ultimate v13.0
+name: LovRadar: Obs BYGG Regulatorisk Overvåking
 
 on:
   schedule:
-    - cron: '0 7 * * 1'
-  workflow_dispatch:
+    # Kjører kl. 08:00 hver mandag (UTC)
+    - cron: '0 8 * * 1'
+  workflow_dispatch: # Lar deg starte skanningen manuelt for testing
 
 jobs:
   scan_and_monitor:
     runs-on: ubuntu-latest
+    
+    # Gir Action-roboten tillatelse til å skrive til repositoriet ditt
     permissions:
       contents: write
 
     steps:
-      - name: 1. Hent koden
+      - name: Sjekk ut kode
         uses: actions/checkout@v4
 
-      - name: 2. Sett opp Python 3.11
+      - name: Sett opp Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: 3. Installer verktøy (v13 krav)
+      - name: Installer avhengigheter
         run: |
-          pip install aiohttp feedparser beautifulsoup4 pypdf lxml requests
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: 4. Kjør LovRadar v13.0
+      - name: Kjør LovRadar v14.0
         env:
+          # Kobler hemmelighetene dine til koden
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: python lovradar.py
 
-      - name: 5. Lagre database og hukommelse
+      - name: Lagre baselinje (Cache)
         run: |
           git config --global user.name "LovRadar Bot"
-          git config --global user.email "bot@lovradar.no"
-          # Vi lagrer både databasen og cache-filen
-          git add lovradar_v13.db lovradar_v13_cache.json || true
-          git commit -m "Oppdaterte regulatorisk database [skip ci]" || exit 0
+          git config --global user.email "bot@lovradar.local"
+          # Vi legger til cache-filen slik at den huskes til neste uke
+          git add lovradar_cache.json
+          # Commit kun hvis det er faktiske endringer i cachen
+          git commit -m "Oppdaterer regulatorisk cache [skip ci]" || echo "Ingen endringer å lagre"
           git push
