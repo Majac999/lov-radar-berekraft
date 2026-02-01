@@ -1,48 +1,37 @@
-name: LovRadar: Obs BYGG Regulatorisk Overvåking
+name: LovRadar Scan
 
 on:
   schedule:
-    # Kjører kl. 08:00 hver mandag (UTC)
-    - cron: '0 8 * * 1'
-  workflow_dispatch: # Lar deg starte skanningen manuelt for testing
+    - cron: '0 6 * * 1'  # Mandag kl 06:00 UTC (07:00 norsk tid)
+  workflow_dispatch:  # Manuell kjøring
 
 jobs:
   scan_and_monitor:
     runs-on: ubuntu-latest
-    
-    # Gir Action-roboten tillatelse til å skrive til repositoriet ditt
-    permissions:
-      contents: write
 
     steps:
-      - name: Sjekk ut kode
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Sett opp Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Installer avhengigheter
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Install dependencies
+      run: pip install aiohttp feedparser beautifulsoup4 lxml requests
 
-      - name: Kjør LovRadar v14.0
-        env:
-          # Kobler hemmelighetene dine til koden
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-        run: python lovradar.py
+    - name: Run LovRadar
+      env:
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+        EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+      run: python lovradar.py
 
-      - name: Lagre baselinje (Cache)
-        run: |
-          git config --global user.name "LovRadar Bot"
-          git config --global user.email "bot@lovradar.local"
-          # Vi legger til cache-filen slik at den huskes til neste uke
-          git add lovradar_cache.json
-          # Commit kun hvis det er faktiske endringer i cachen
-          git commit -m "Oppdaterer regulatorisk cache [skip ci]" || echo "Ingen endringer å lagre"
-          git push
+    - name: Commit cache
+      run: |
+        git config --global user.name "LovRadar Bot"
+        git config --global user.email "lovradar@bot.local"
+        git add lovradar_cache.json || true
+        git diff --staged --quiet || git commit -m "Oppdatert cache $(date +'%Y-%m-%d')"
+        git push || true
